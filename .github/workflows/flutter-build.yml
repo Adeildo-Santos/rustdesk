@@ -397,6 +397,60 @@ jobs:
           mv $msi.FullName ../../SignOutput/Ecletica-Acesso-Remoto-Windows-$plat.msi
           sha256sum ../../SignOutput/Ecletica-*.msi
 
+      - name: Build installer exe (NSIS)
+        # O instalador .exe e so uma casca: extrai o msi e chama o instalador do Windows
+        # (msiexec /passive), com o icone da marca e elevacao propria. Entra no Release
+        # pelo mesmo glob dos outros (.SignOutput/Ecletica-*.exe), ao lado do quicksuporte.
+        if: env.UPLOAD_ARTIFACT == 'true'
+        shell: bash
+        run: |
+          set -e
+          PLAT="${{ matrix.job.arch == 'aarch64' && 'arm64' || 'x64' }}"
+          MSI="Ecletica-Acesso-Remoto-Windows-$PLAT.msi"
+          MAKENSIS=$(ls "/c/Program Files (x86)/NSIS/makensis.exe" 2>/dev/null || ls "/c/Program Files/NSIS/makensis.exe" 2>/dev/null || true)
+          if [ -z "$MAKENSIS" ]; then
+            choco install nsis -y --no-progress
+            MAKENSIS="/c/Program Files (x86)/NSIS/makensis.exe"
+          fi
+          mkdir -p ./instalador-exe && cd ./instalador-exe
+          cp "../SignOutput/$MSI" .
+          cp ../flutter/windows/runner/resources/app_icon.ico .
+          cat > instalador.nsi <<'NSI'
+          Unicode true
+          !define PRODUTO "Eclética Acesso Remoto"
+          Name "${PRODUTO}"
+          OutFile "${SAIDA}"
+          Icon "app_icon.ico"
+          UninstallIcon "app_icon.ico"
+          RequestExecutionLevel admin
+          SilentInstall silent
+          SetCompressor /SOLID lzma
+          XPStyle on
+          VIProductVersion "1.5.0.0"
+          VIAddVersionKey "ProductName" "${PRODUTO}"
+          VIAddVersionKey "FileDescription" "Instalador do ${PRODUTO}"
+          VIAddVersionKey "FileVersion" "1.5.0.0"
+          VIAddVersionKey "CompanyName" "Eclética"
+          VIAddVersionKey "LegalCopyright" "Eclética"
+          !include "LogicLib.nsh"
+          Section "Instalar"
+            SetOutPath "$PLUGINSDIR"
+            File "${PACOTE}"
+            ExecWait '"$SYSDIR\msiexec.exe" /i "$PLUGINSDIR\${PACOTE}" /passive' $0
+            Delete "$PLUGINSDIR\${PACOTE}"
+            ${If} $0 == 3010
+              MessageBox MB_OK "${PRODUTO} foi instalado. O Windows pede para reiniciar, para concluir."
+            ${ElseIf} $0 == 1602
+              ; cancelado pelo usuario: nao avisar nada
+            ${ElseIf} $0 != 0
+              MessageBox MB_ICONSTOP "A instalacao terminou com o codigo $0. Anote este numero e avise o suporte."
+            ${EndIf}
+          SectionEnd
+          NSI
+          "$MAKENSIS" -V2 -DPACOTE="$MSI" -DSAIDA="Ecletica-Acesso-Remoto-Windows-$PLAT.exe" instalador.nsi
+          cp "Ecletica-Acesso-Remoto-Windows-$PLAT.exe" ../SignOutput/
+          sha256sum "../SignOutput/Ecletica-Acesso-Remoto-Windows-$PLAT.exe"
+
       - name: Build pre-built MSI template
         # Two things this works around: preprocess.py rewrites res/msi in place, so the
         # tree is reset around this second variant; and it locates the app as
