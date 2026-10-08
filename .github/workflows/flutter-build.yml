@@ -45,7 +45,7 @@ env:
   VCPKG_COMMIT_ID: "9e593bb18ea69cc5095e012465dcd675a822ed0d"
   VCPKG_CMAKE_VERSION: "4.3.0"
   ARMV7_VCPKG_COMMIT_ID: "6f29f12e82a8293156836ad81cc9bf5af41fe836" # 2025.01.13, got "/opt/artifacts/vcpkg/vcpkg: No such file or directory" with latest version
-  VERSION: "1.5.0"
+  VERSION: "1.5.1"
   NDK_VERSION: "r28c"
   #signing keys env variable checks
   UPLOAD_ARTIFACT: "${{ inputs.upload-artifact }}"
@@ -426,10 +426,10 @@ jobs:
           SilentInstall silent
           SetCompressor /SOLID lzma
           XPStyle on
-          VIProductVersion "1.5.0.0"
+          VIProductVersion "${{ env.VERSION }}.0"
           VIAddVersionKey "ProductName" "${PRODUTO}"
           VIAddVersionKey "FileDescription" "Instalador do ${PRODUTO}"
-          VIAddVersionKey "FileVersion" "1.5.0.0"
+          VIAddVersionKey "FileVersion" "${{ env.VERSION }}.0"
           VIAddVersionKey "CompanyName" "Eclética"
           VIAddVersionKey "LegalCopyright" "Eclética"
           !include "LogicLib.nsh"
@@ -450,6 +450,34 @@ jobs:
           "$MAKENSIS" -V2 -DPACOTE="$MSI" -DSAIDA="Ecletica-Acesso-Remoto-Windows-$PLAT.exe" instalador.nsi
           cp "Ecletica-Acesso-Remoto-Windows-$PLAT.exe" ../SignOutput/
           sha256sum "../SignOutput/Ecletica-Acesso-Remoto-Windows-$PLAT.exe"
+
+      - name: Prepara nomes do atualizador e a versao
+        # O proprio cliente (RustDesk) procura o arquivo com o nome
+        # rustdesk-<versao>-<arch>.<ext> numa release com o numero da versao.
+        # Publicamos as MESMAS builds com esse nome para a atualizacao automatica
+        # funcionar sem mexer no codigo de download do RustDesk.
+        if: env.UPLOAD_ARTIFACT == 'true'
+        shell: bash
+        run: |
+          set -e
+          ARCH="${{ matrix.job.arch == 'aarch64' && 'aarch64' || 'x86_64' }}"
+          cp "./SignOutput/Ecletica-Acesso-Remoto-Windows-${{ matrix.job.arch == 'aarch64' && 'arm64' || 'x64' }}.msi" \
+             "./SignOutput/rustdesk-${{ env.VERSION }}-$ARCH.msi"
+          cp "./SignOutput/Ecletica-Acesso-Remoto-Windows-${{ matrix.job.arch == 'aarch64' && 'arm64' || 'x64' }}.exe" \
+             "./SignOutput/rustdesk-${{ env.VERSION }}-$ARCH.exe"
+          echo "${{ env.VERSION }}" > ./SignOutput/VERSION.txt
+          ls -la "./SignOutput/rustdesk-${{ env.VERSION }}-$ARCH.msi" "./SignOutput/rustdesk-${{ env.VERSION }}-$ARCH.exe" ./SignOutput/VERSION.txt
+
+      - name: Publish versao para o atualizador
+        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
+        if: env.UPLOAD_ARTIFACT == 'true'
+        with:
+          prerelease: true
+          make_latest: false
+          tag_name: ${{ env.VERSION }}
+          files: |
+            ./SignOutput/rustdesk-${{ env.VERSION }}-*.msi
+            ./SignOutput/rustdesk-${{ env.VERSION }}-*.exe
 
       - name: Build pre-built MSI template
         # Two things this works around: preprocess.py rewrites res/msi in place, so the
@@ -514,6 +542,7 @@ jobs:
           files: |
             ./SignOutput/Ecletica-*.msi
             ./SignOutput/Ecletica-*.exe
+            ./SignOutput/VERSION.txt
 
       - name: Remove os nomes antigos do Release
         # Depois que os arquivos com nome novo entraram, tiramos os antigos
@@ -1035,6 +1064,27 @@ jobs:
               [ -e "$name" ] || continue
               mv "$name" "Ecletica-Acesso-Remoto-macOS-$SUF.dmg"
           done
+
+      - name: Copia nomes que o atualizador procura
+        # O cliente procura rustdesk-<versao>-<arch>.dmg numa release com o numero
+        # da versao; publicamos o mesmo dmg com esse nome.
+        if: env.UPLOAD_ARTIFACT == 'true'
+        run: |
+          for f in Ecletica-*.dmg; do
+            [ -e "$f" ] || continue
+            cp "$f" "rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.dmg"
+          done
+          ls -la rustdesk-${{ env.VERSION }}-*.dmg
+
+      - name: Publish versao para o atualizador
+        if: env.UPLOAD_ARTIFACT == 'true'
+        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
+        with:
+          prerelease: true
+          make_latest: false
+          tag_name: ${{ env.VERSION }}
+          files: |
+            rustdesk-${{ env.VERSION }}-*.dmg
 
       - name: Publish DMG package
         if: env.UPLOAD_ARTIFACT == 'true'

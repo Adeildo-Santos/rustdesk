@@ -181,8 +181,11 @@ fn check_update(manually: bool) -> ResultType<()> {
         return Ok(());
     }
     #[cfg(target_os = "windows")]
-    let update_msi = crate::platform::is_msi_installed()? && !crate::is_custom_client();
-    if !(manually || config::Config::get_bool_option(keys::OPTION_ALLOW_AUTO_UPDATE)) {
+    let update_msi = crate::platform::is_msi_installed()?;
+    // Build Ecletica: sem valor gravado no arquivo de configuracao, a atualizacao
+    // automatica vale como ligada (o usuario pode desligar em Ajustes).
+    let auto_update_ligado = config::Config::get_option(keys::OPTION_ALLOW_AUTO_UPDATE) != "N";
+    if !(manually || auto_update_ligado) {
         return Ok(());
     }
     if do_check_software_update().is_err() {
@@ -536,14 +539,13 @@ pub fn start_auto_update_macos() {
 pub fn check_update_as_root() -> ResultType<bool> {
     let _update_lock = acquire_mac_update_lock()?;
     // Allow-auto-update setting
-    if !config::Config::get_bool_option(keys::OPTION_ALLOW_AUTO_UPDATE) {
+    // Build Ecletica: sem valor gravado, a atualizacao automatica vale como ligada.
+    if config::Config::get_option(keys::OPTION_ALLOW_AUTO_UPDATE) == "N" {
         log::info!("[root-update] Auto update is disabled, skipping.");
         return Ok(false);
     }
-    if crate::is_custom_client() {
-        log::info!("[root-update] Custom client detected, skipping stock update.");
-        return Ok(false);
-    }
+    // Build Ecletica: tambem atualizamos cliente com marca propria — a versao vem
+    // do nosso arquivo e o arquivo baixado vem da nossa release.
     // Clean up only old temp dirs from previous failed updates. The detached
     // installer keeps using its update directory after this process exits and
     // releases the advisory lock, so a newly-started daemon must not remove a
