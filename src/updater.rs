@@ -181,10 +181,11 @@ fn check_update(manually: bool) -> ResultType<()> {
         return Ok(());
     }
     #[cfg(target_os = "windows")]
-    // Ecletica: instalacao feita sem o MSI do Windows nao cria a chave no registro;
-    // is_msi_installed() devolvia erro e o "?" abortava a verificacao inteira, entao
-    // o app nunca baixava a versao nova. Sem a chave, vale como instalacao por exe.
-    let update_msi = crate::platform::is_msi_installed().unwrap_or(false);
+    // Ecletica: instalacao feita fora do MSI nao cria a chave do registro, e
+    // is_msi_installed() devolvia erro; o "?" abortava a verificacao inteira e o app
+    // nunca baixava a versao nova. Sem a chave, o caminho do MSI e o seguro: roda
+    // pelo msiexec, que funciona mesmo quando o motor esta no servico (conta SYSTEM).
+    let update_msi = crate::platform::is_msi_installed().unwrap_or(true);
     // Build Ecletica: sem valor gravado no arquivo de configuracao, a atualizacao
     // automatica vale como ligada (o usuario pode desligar em Ajustes).
     let auto_update_ligado = config::Config::get_option(keys::OPTION_ALLOW_AUTO_UPDATE) != "N";
