@@ -215,6 +215,10 @@ fn check_update(manually: bool) -> ResultType<()> {
     let update_url = crate::common::SOFTWARE_UPDATE_URL.lock().unwrap().clone();
     if update_url.is_empty() {
         log::debug!("No update available.");
+        log::info!(
+            "Ecletica atualizacao: servidor sem versao mais nova, nada a fazer (atual={})",
+            crate::VERSION
+        );
     } else {
         let download_url = update_url.replace("tag", "download");
         let version = download_url.split('/').last().unwrap_or_default();
@@ -237,6 +241,9 @@ fn check_update(manually: bool) -> ResultType<()> {
             format!("{}/rustdesk-{}-x86-sciter.exe", download_url, version)
         };
         log::debug!("New version available: {}", &version);
+        log::info!(
+            "Ecletica atualizacao: versao {version} encontrada no servidor; baixando {download_url}"
+        );
         let client = create_http_client_with_url_strict(&download_url)?;
         let Some(file_path) = get_download_file_from_url(&download_url) else {
             bail!("Failed to get the file path from the URL: {}", download_url);
