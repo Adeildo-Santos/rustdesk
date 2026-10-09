@@ -75,10 +75,13 @@ fn make_tray() -> hbb_common::ResultType<()> {
         None
     };
     let open_i = MenuItem::new(translate("Open".to_owned()), true, None);
+    // Build Ecletica: item para sair do app e da bandeja sem mexer no servico,
+    // que e o que faltava no menu (antes so havia "Open" e "Stop service").
+    let quit_app_i = MenuItem::new(translate("Quit".to_owned()), true, None);
     if let Some(quit_i) = &quit_i {
-        tray_menu.append_items(&[&open_i, quit_i]).ok();
+        tray_menu.append_items(&[&open_i, quit_i, &quit_app_i]).ok();
     } else {
-        tray_menu.append_items(&[&open_i]).ok();
+        tray_menu.append_items(&[&open_i, &quit_app_i]).ok();
     }
     let tooltip = |count: usize| {
         if count == 0 {
@@ -188,6 +191,21 @@ fn make_tray() -> hbb_common::ResultType<()> {
         }
 
         if let Ok(event) = menu_channel.try_recv() {
+            if event.id == quit_app_i.id() {
+                // Build Ecletica: sair do app e da bandeja. O servico continua rodando,
+                // por isso nao chamamos uninstall_service aqui.
+                #[cfg(windows)]
+                {
+                    let _ = _tray_icon
+                        .lock()
+                        .unwrap()
+                        .as_mut()
+                        .map(|t| t.set_visible(false));
+                    let _ = crate::platform::try_kill_rustdesk_main_window_process();
+                }
+                *control_flow = ControlFlow::Exit;
+                return;
+            }
             if let Some(quit_i) = &quit_i {
                 if event.id == quit_i.id() {
                     /* failed in windows, seems no permission to check system process
