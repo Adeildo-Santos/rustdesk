@@ -193,8 +193,14 @@ fn check_update(manually: bool) -> ResultType<()> {
     let auto_update_ligado = config::Config::get_option(keys::OPTION_ALLOW_AUTO_UPDATE) != "N";
     // Build Ecletica: registro de cada passo da atualizacao. Antes, quando a
     // condicao falhava, o motor saia em silencio e nao havia como saber onde parou.
+    #[cfg(target_os = "windows")]
     log::info!(
         "Ecletica atualizacao: manual={manually}, auto={auto_update_ligado}, msi={update_msi}, versao_atual={}",
+        crate::VERSION
+    );
+    #[cfg(not(target_os = "windows"))]
+    log::info!(
+        "Ecletica atualizacao: manual={manually}, auto={auto_update_ligado}, versao_atual={}",
         crate::VERSION
     );
     if !(manually || auto_update_ligado) {
