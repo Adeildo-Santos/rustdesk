@@ -86,6 +86,7 @@ pub fn update_controlling_session_count(count: usize) {
 
 #[allow(dead_code)]
 pub fn start_auto_update() {
+    log::info!("Ecletica atualizacao: motor ligado neste processo (primeira verificacao em 30s)");
     let _sender = TX_MSG.lock().unwrap();
 }
 
@@ -141,6 +142,7 @@ fn start_auto_update_check() -> Sender<UpdateMsg> {
 
 fn start_auto_update_check_(rx_msg: Receiver<UpdateMsg>) {
     std::thread::sleep(INITIAL_CHECK_DELAY);
+    log::info!("Ecletica atualizacao: fio do motor acordou, verificando agora");
     if let Err(e) = check_update(false) {
         log::error!("Error checking for updates: {}", e);
     }
@@ -189,7 +191,14 @@ fn check_update(manually: bool) -> ResultType<()> {
     // Build Ecletica: sem valor gravado no arquivo de configuracao, a atualizacao
     // automatica vale como ligada (o usuario pode desligar em Ajustes).
     let auto_update_ligado = config::Config::get_option(keys::OPTION_ALLOW_AUTO_UPDATE) != "N";
+    // Build Ecletica: registro de cada passo da atualizacao. Antes, quando a
+    // condicao falhava, o motor saia em silencio e nao havia como saber onde parou.
+    log::info!(
+        "Ecletica atualizacao: manual={manually}, auto={auto_update_ligado}, msi={update_msi}, versao_atual={}",
+        crate::VERSION
+    );
     if !(manually || auto_update_ligado) {
+        log::info!("Ecletica atualizacao: desligada na configuracao; saindo sem verificar");
         return Ok(());
     }
     if do_check_software_update().is_err() {
@@ -267,6 +276,10 @@ fn check_update(manually: bool) -> ResultType<()> {
         if has_no_active_conns() {
             #[cfg(target_os = "windows")]
             update_new_version(update_msi, &version, &file_path);
+        } else {
+            log::info!(
+                "Ecletica atualizacao: {version} baixada, mas ha sessao ativa; instalando na proxima verificacao"
+            );
         }
     }
     Ok(())
