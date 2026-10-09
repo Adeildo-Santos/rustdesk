@@ -1924,8 +1924,18 @@ pub fn add_recent_document(path: &str) {
 }
 
 pub fn is_installed() -> bool {
-    let (_, _, _, exe) = get_install_info();
-    std::fs::metadata(exe).is_ok()
+    let (_, path, _, exe) = get_install_info();
+    if std::fs::metadata(&exe).is_ok() {
+        return true;
+    }
+    // Ecletica: o instalador grava o executavel com o nome original do produto
+    // ("RustDesk.exe"), enquanto o nome do app e "Ecletica Acesso Remoto". Sem esta
+    // tolerancia o app se considera portatil mesmo estando instalado, e no modo
+    // portatil a atualizacao automatica nao existe: ela exige is_installed() == true
+    // (ver rendezvous_mediator: is_installed() && is_server() -> start_auto_update()).
+    let base = path.trim_end_matches('\\');
+    std::fs::metadata(format!("{}\\RustDesk.exe", base)).is_ok()
+        || std::fs::metadata(format!("{}\\RustDesk\\RustDesk.exe", base)).is_ok()
 }
 
 pub fn get_reg(name: &str) -> String {
