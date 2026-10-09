@@ -71,10 +71,7 @@ static CONTROLLING_SESSION_COUNT: AtomicUsize = AtomicUsize::new(0);
 /// Initial wait after startup before the first update check (30 seconds).
 pub const INITIAL_CHECK_DELAY: Duration = Duration::from_secs(30);
 
-/// One full day — interval between update checks in the macOS root scheduler.
-pub const DUR_ONE_DAY: Duration = Duration::from_secs(60 * 60 * 24);
-
-/// Interval between automatic update checks in the service scheduler (Ecletica):
+/// Interval between automatic update checks in both schedulers (Ecletica):
 /// 10 minutes. The upstream default of one full day was too slow to reach the
 /// stores with a new version; the brake is the version file on the server.
 pub const AUTO_CHECK_INTERVAL: Duration = Duration::from_secs(60 * 10);
@@ -541,7 +538,7 @@ pub fn start_auto_update_macos() {
             log::info!("[root-update] Auto-update scheduler thread started.");
             std::thread::sleep(INITIAL_CHECK_DELAY);
             wait_for_failed_update_retry();
-            let mut interval = DUR_ONE_DAY;
+            let mut interval = AUTO_CHECK_INTERVAL;
             loop {
                 log::info!("[root-update] Running scheduled update check...");
                 let no_active_conns = has_no_active_conns_ipc();
@@ -557,7 +554,7 @@ pub fn start_auto_update_macos() {
                                 // failure interval until the new daemon replaces us.
                                 interval = RETRY_INTERVAL;
                             } else {
-                                interval = DUR_ONE_DAY;
+                                interval = AUTO_CHECK_INTERVAL;
                             }
                         }
                         Err(e) => {
