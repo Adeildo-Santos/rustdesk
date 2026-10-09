@@ -379,8 +379,12 @@ pub fn get_update_download_file_from_url(url: &str) -> Option<PathBuf> {
     let tag = segments.next()?;
     let filename = segments.next()?;
 
-    if owner != "rustdesk"
-        || repo != "rustdesk"
+    // Build Ecletica: a release de atualizacao vive no nosso fork (Adeildo-Santos),
+    // nao no repositorio oficial — a trava original do upstream recusava o nosso
+    // endereco e abortava o download antes de comecar.
+    let nosso_repo = owner == crate::common::ECLETICA_RELEASE_OWNER
+        && repo == crate::common::ECLETICA_RELEASE_REPO;
+    if !(nosso_repo || (owner == "rustdesk" && repo == "rustdesk"))
         || releases != "releases"
         || download != "download"
         || tag.is_empty()

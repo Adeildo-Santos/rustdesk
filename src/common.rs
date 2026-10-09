@@ -1015,6 +1015,10 @@ pub fn is_modifier(evt: &KeyEvent) -> bool {
 // e aponta para a NOSSA release, onde ficam os instaladores.
 pub const ECLETICA_VERSION_JSON: &str = "https://app.ecletico.ai/rustdesk-versao.json";
 
+// Build Ecletica: a release de onde a atualizacao automatica baixa fica no nosso fork.
+pub const ECLETICA_RELEASE_OWNER: &str = "Adeildo-Santos";
+pub const ECLETICA_RELEASE_REPO: &str = "rustdesk";
+
 pub fn check_software_update() {
     // Atualizacao automatica ligada por padrao no build Ecletica (o usuario pode
     // desligar em Ajustes -> "Auto update").
