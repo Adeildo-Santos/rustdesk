@@ -1934,8 +1934,22 @@ pub fn is_installed() -> bool {
     // portatil a atualizacao automatica nao existe: ela exige is_installed() == true
     // (ver rendezvous_mediator: is_installed() && is_server() -> start_auto_update()).
     let base = path.trim_end_matches('\\');
-    std::fs::metadata(format!("{}\\RustDesk.exe", base)).is_ok()
+    if std::fs::metadata(format!("{}\\RustDesk.exe", base)).is_ok()
         || std::fs::metadata(format!("{}\\RustDesk\\RustDesk.exe", base)).is_ok()
+    {
+        return true;
+    }
+    // Ecletica: o registro pode nao ter a chave InstallLocation, e nesse caso a
+    // pasta suposta acima nao e a pasta real. Se o proprio executavel em uso esta
+    // na pasta de programas, ele veio de uma instalacao.
+    if let Ok(cur) = std::env::current_exe() {
+        if let Ok(pf) = std::env::var("ProgramFiles") {
+            if !pf.is_empty() && cur.starts_with(&pf) {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 pub fn get_reg(name: &str) -> String {
