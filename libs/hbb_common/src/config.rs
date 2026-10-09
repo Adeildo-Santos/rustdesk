@@ -2831,10 +2831,17 @@ pub fn is_disable_account() -> bool {
 
 #[inline]
 pub fn is_disable_installation() -> bool {
-    // Ecletica: cliente personalizado. Some a faixa do UAC e o aviso de nova
-    // versao do RustDesk oficial na tela inicial (nao instalamos o RustDesk
-    // de fabrica nem atualizamos para a versao publica).
-    true
+    // Ecletica: NAO travar a instalacao.
+    //
+    // Antes esta funcao devolvia `true` fixo (para esconder a faixa de UAC/"instale o
+    // RustDesk" da tela inicial). O efeito colateral era grave: com a instalacao
+    // travada, o app (1) nao criava o proprio servico do Windows no momento de
+    // instalar e (2) o caminho `--update` voltava antes de instalar. Como a
+    // atualizacao automatica roda dentro desse servico (is_installed && is_server),
+    // ela nunca acontecia: o app consultava a versao nova e nada mais.
+    // A faixa nao volta a aparecer porque agora o app e instalado de verdade, com
+    // servico; ela so aparece quando o app esta rodando sem estar instalado.
+    is_some_hard_opton("disable-installation")
 }
 
 // This function must be kept the same as the one in flutter and sciter code.
