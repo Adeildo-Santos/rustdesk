@@ -9,6 +9,9 @@ on:
       upload-tag:
         type: string
         default: "nightly"
+      somente:
+        type: string
+        default: "todos"
 
 # NOTE: F-Droid builder script 'flutter/build_fdroid.sh' reads environment
 # variables from this workflow!
@@ -106,6 +109,7 @@ jobs:
       target_version: Windows10
 
   build-for-windows-flutter:
+    if: ${{ inputs.somente != 'mac' }}
     name: ${{ matrix.job.target }}
     needs: [build-RustDeskTempTopMostWindow, generate-bridge]
     runs-on: ${{ matrix.job.os }}
@@ -848,6 +852,7 @@ jobs:
 
 
   build-for-macOS:
+    if: ${{ inputs.somente != 'windows' }}
     name: ${{ matrix.job.target }}
     runs-on: ${{ matrix.job.os }}
     needs: [generate-bridge]
@@ -1105,7 +1110,7 @@ jobs:
       - build-for-windows-flutter
       - build-for-windows-sciter
     runs-on: ubuntu-latest
-    if: ${{ inputs.upload-artifact }}
+    if: ${{ inputs.upload-artifact && inputs.somente == 'todos' }}
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1

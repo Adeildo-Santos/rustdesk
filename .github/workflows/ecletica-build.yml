@@ -4,7 +4,8 @@ name: Ecletica - build do cliente (Windows + macOS)
 #  - push na branch ecletica: dispara sozinho (deploy key serve, nao precisa de token)
 #  - o nome do job nao define plataforma: quem decide e o arquivo flutter-build.yml
 #    (jobs build-for-windows* e build-for-macOS, controlados pelo campo "if")
-#  - manual: Actions -> este workflow -> Run workflow
+#  - manual: Actions -> este workflow -> Run workflow; no campo "somente" da para
+#    rodar apenas o Mac (mac) ou apenas o Windows (windows), sem esperar o outro
 #
 # Detalhes que fazem a chamada passar na validacao do GitHub:
 #  - secrets: inherit            -> o flutter-build.yml le segredos no env
@@ -19,6 +20,10 @@ on:
         description: "Sufixo do artefato"
         required: false
         default: "ecletica"
+      somente:
+        description: "Rodar so o Mac (mac), so o Windows (windows) ou tudo (todos)"
+        required: false
+        default: "todos"
 
 permissions:
   contents: write
@@ -30,3 +35,4 @@ jobs:
     with:
       upload-artifact: true
       upload-tag: ${{ github.event.inputs.tag || 'ecletica' }}
+      somente: ${{ github.event.inputs.somente || 'todos' }}
