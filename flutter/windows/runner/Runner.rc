@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "Eclética" "\0"
-            VALUE "FileDescription", "Eclética Acesso Remoto" "\0"
+            VALUE "FileDescription", "Eclética Connect" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "rustdesk" "\0"
+            VALUE "InternalName", "Ecletica Connect" "\0"
             VALUE "LegalCopyright", "Copyright © 2026 Eclética. Todos os direitos reservados." "\0"
-            VALUE "OriginalFilename", "rustdesk.exe" "\0"
-            VALUE "ProductName", "Eclética Acesso Remoto" "\0"
+            VALUE "OriginalFilename", "Ecletica Connect.exe" "\0"
+            VALUE "ProductName", "Eclética Connect" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

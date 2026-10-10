@@ -45,7 +45,7 @@ env:
   VCPKG_COMMIT_ID: "9e593bb18ea69cc5095e012465dcd675a822ed0d"
   VCPKG_CMAKE_VERSION: "4.3.0"
   ARMV7_VCPKG_COMMIT_ID: "6f29f12e82a8293156836ad81cc9bf5af41fe836" # 2025.01.13, got "/opt/artifacts/vcpkg/vcpkg: No such file or directory" with latest version
-  VERSION: "1.5.18"
+  VERSION: "1.5.19"
   NDK_VERSION: "r28c"
   #signing keys env variable checks
   UPLOAD_ARTIFACT: "${{ inputs.upload-artifact }}"
@@ -388,13 +388,17 @@ jobs:
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
           pushd ./res/msi
-          python preprocess.py --arp -d ../../rustdesk
+          # O dist sai do build como rustdesk.exe; o MSI instala o arquivo com o nome do
+          # produto (File Name="$(var.Product).exe", fonte = FileSource\Name). Sem este
+          # rename o preprocess nao acha o exe e a rodada morre aqui.
+          if (Test-Path '../../rustdesk/rustdesk.exe') { Move-Item -Force '../../rustdesk/rustdesk.exe' '../../rustdesk/Ecletica Connect.exe' }
+          python preprocess.py --arp --app-name "Ecletica Connect" --manufacturer "Eclética" --data-dir "Ecletica Acesso Remoto" -d ../../rustdesk
           nuget restore msi.sln
           $msiPlatform = if ('${{ matrix.job.arch }}' -eq 'aarch64') { 'ARM64' } else { 'x64' }
           msbuild msi.sln -p:Configuration=Release -p:Platform=$msiPlatform /p:TargetVersion=Windows10
           $msi = Get-ChildItem ./Package/bin/*/Release/en-us/Package.msi | Select-Object -First 1
           $plat = if ('${{ matrix.job.arch }}' -eq 'aarch64') { 'arm64' } else { 'x64' }
-          mv $msi.FullName ../../SignOutput/Ecletica-Acesso-Remoto-Windows-$plat.msi
+          mv $msi.FullName ../../SignOutput/Ecletica-Connect-Windows-$plat.msi
           sha256sum ../../SignOutput/Ecletica-*.msi
 
       - name: Build installer exe (NSIS)
@@ -406,7 +410,7 @@ jobs:
         run: |
           set -e
           PLAT="${{ matrix.job.arch == 'aarch64' && 'arm64' || 'x64' }}"
-          MSI="Ecletica-Acesso-Remoto-Windows-$PLAT.msi"
+          MSI="Ecletica-Connect-Windows-$PLAT.msi"
           MAKENSIS=$(ls "/c/Program Files (x86)/NSIS/makensis.exe" 2>/dev/null || ls "/c/Program Files/NSIS/makensis.exe" 2>/dev/null || true)
           if [ -z "$MAKENSIS" ]; then
             choco install nsis -y --no-progress
@@ -417,7 +421,7 @@ jobs:
           cp ../flutter/windows/runner/resources/app_icon.ico .
           cat > instalador.nsi <<'NSI'
           Unicode true
-          !define PRODUTO "Eclética Acesso Remoto"
+          !define PRODUTO "Eclética Connect"
           Name "${PRODUTO}"
           OutFile "${SAIDA}"
           Icon "app_icon.ico"
@@ -447,9 +451,9 @@ jobs:
             ${EndIf}
           SectionEnd
           NSI
-          "$MAKENSIS" -V2 -DPACOTE="$MSI" -DSAIDA="Ecletica-Acesso-Remoto-Windows-$PLAT.exe" instalador.nsi
-          cp "Ecletica-Acesso-Remoto-Windows-$PLAT.exe" ../SignOutput/
-          sha256sum "../SignOutput/Ecletica-Acesso-Remoto-Windows-$PLAT.exe"
+          "$MAKENSIS" -V2 -DPACOTE="$MSI" -DSAIDA="Ecletica-Connect-Windows-$PLAT.exe" instalador.nsi
+          cp "Ecletica-Connect-Windows-$PLAT.exe" ../SignOutput/
+          sha256sum "../SignOutput/Ecletica-Connect-Windows-$PLAT.exe"
 
       - name: Prepara nomes do atualizador e a versao
         # O proprio cliente (RustDesk) procura o arquivo com o nome
@@ -461,9 +465,9 @@ jobs:
         run: |
           set -e
           ARCH="${{ matrix.job.arch == 'aarch64' && 'aarch64' || 'x86_64' }}"
-          cp "./SignOutput/Ecletica-Acesso-Remoto-Windows-${{ matrix.job.arch == 'aarch64' && 'arm64' || 'x64' }}.msi" \
+          cp "./SignOutput/Ecletica-Connect-Windows-${{ matrix.job.arch == 'aarch64' && 'arm64' || 'x64' }}.msi" \
              "./SignOutput/rustdesk-${{ env.VERSION }}-$ARCH.msi"
-          cp "./SignOutput/Ecletica-Acesso-Remoto-Windows-${{ matrix.job.arch == 'aarch64' && 'arm64' || 'x64' }}.exe" \
+          cp "./SignOutput/Ecletica-Connect-Windows-${{ matrix.job.arch == 'aarch64' && 'arm64' || 'x64' }}.exe" \
              "./SignOutput/rustdesk-${{ env.VERSION }}-$ARCH.exe"
           echo "${{ env.VERSION }}" > ./SignOutput/VERSION.txt
           ls -la "./SignOutput/rustdesk-${{ env.VERSION }}-$ARCH.msi" "./SignOutput/rustdesk-${{ env.VERSION }}-$ARCH.exe" ./SignOutput/VERSION.txt
@@ -1025,7 +1029,7 @@ jobs:
           CREATE_DMG="$(command -v create-dmg)"
           CREATE_DMG="$(readlink -f "$CREATE_DMG")"
           sed -i -e 's/MAXIMUM_UNMOUNTING_ATTEMPTS=3/MAXIMUM_UNMOUNTING_ATTEMPTS=7/' "$CREATE_DMG"
-          create-dmg --icon "RustDesk.app" 200 190 --hide-extension "RustDesk.app" --window-size 800 400 --app-drop-link 600 185 rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.dmg ./flutter/build/macos/Build/Products/Release/RustDesk.app
+          create-dmg --icon "Ecletica Connect.app" 200 190 --hide-extension "Ecletica Connect.app" --window-size 800 400 --app-drop-link 600 185 rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.dmg "./flutter/build/macos/Build/Products/Release/Ecletica Connect.app"
 
       - name: Upload unsigned macOS app
         if: env.UPLOAD_ARTIFACT == 'true'
@@ -1048,10 +1052,10 @@ jobs:
           rm -rf *.dmg || true
           # the identity secret carries its own shell quoting, so expand it inline like the dmg codesign below
           bash ./.github/scripts/sign-macos-app.sh \
-            ./flutter/build/macos/Build/Products/Release/RustDesk.app \
+            "./flutter/build/macos/Build/Products/Release/Ecletica Connect.app" \
             ${{ secrets.MACOS_CODESIGN_IDENTITY }} \
             ./flutter/macos/Runner/Release.entitlements
-          create-dmg --icon "RustDesk.app" 200 190 --hide-extension "RustDesk.app" --window-size 800 400 --app-drop-link 600 185 rustdesk-${{ env.VERSION }}.dmg ./flutter/build/macos/Build/Products/Release/RustDesk.app
+          create-dmg --icon "Ecletica Connect.app" 200 190 --hide-extension "Ecletica Connect.app" --window-size 800 400 --app-drop-link 600 185 rustdesk-${{ env.VERSION }}.dmg "./flutter/build/macos/Build/Products/Release/Ecletica Connect.app"
           codesign --force --options runtime -s ${{ secrets.MACOS_CODESIGN_IDENTITY }} --deep --strict rustdesk-${{ env.VERSION }}.dmg -vvv
           # notarize the rustdesk-${{ env.VERSION }}.dmg
           rcodesign notary-submit --api-key-path ${{ github.workspace }}/rustdesk.json  --staple rustdesk-${{ env.VERSION }}.dmg
@@ -1062,7 +1066,7 @@ jobs:
           SUF=$([ "${{ matrix.job.arch }}" = "aarch64" ] && echo AppleSilicon || echo Intel)
           for name in rustdesk*.dmg; do
               [ -e "$name" ] || continue
-              mv "$name" "Ecletica-Acesso-Remoto-macOS-$SUF.dmg"
+              mv "$name" "Ecletica-Connect-macOS-$SUF.dmg"
           done
 
       - name: Copia nomes que o atualizador procura

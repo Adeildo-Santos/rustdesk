@@ -69,7 +69,7 @@ lazy_static::lazy_static! {
     static ref ONLINE: Mutex<HashMap<String, i64>> = Default::default();
     pub static ref PROD_RENDEZVOUS_SERVER: RwLock<String> = RwLock::new("".to_owned());
     pub static ref EXE_RENDEZVOUS_SERVER: RwLock<String> = Default::default();
-    pub static ref APP_NAME: RwLock<String> = RwLock::new("Ecletica Acesso Remoto".to_owned());
+    pub static ref APP_NAME: RwLock<String> = RwLock::new("Ecletica Connect".to_owned());
     static ref KEY_PAIR: Mutex<Option<KeyPair>> = Default::default();
     static ref USER_DEFAULT_CONFIG: RwLock<(UserDefaultConfig, Instant)> = RwLock::new((UserDefaultConfig::load(), Instant::now()));
     pub static ref NEW_STORED_PEER_CONFIG: Mutex<HashSet<String>> = Default::default();
@@ -81,6 +81,18 @@ lazy_static::lazy_static! {
     pub static ref OVERWRITE_LOCAL_SETTINGS: RwLock<HashMap<String, String>> = Default::default();
     pub static ref HARD_SETTINGS: RwLock<HashMap<String, String>> = Default::default();
     pub static ref BUILTIN_SETTINGS: RwLock<HashMap<String, String>> = Default::default();
+}
+
+/// Nome usado em **disco** — pasta de dados, arquivo de config, logs e agenda de
+/// enderecos. Fica congelado no nome antigo de proposito (virada para "Ecletica
+/// Connect", 10/10/2026): e essa pasta que guarda a **ID da maquina**, a senha
+/// permanente e a agenda. Trocar o nome em disco daria ID novo a todas as
+/// maquinas e apagaria o acesso salvo. Muda so a marca (janela, servico,
+/// instalador); o nome em disco nunca.
+pub const DATA_DIR_NAME: &str = "Ecletica Acesso Remoto";
+
+pub fn data_dir_name() -> String {
+    DATA_DIR_NAME.to_owned()
 }
 
 #[cfg(target_os = "android")]
@@ -751,7 +763,7 @@ impl Config {
     }
 
     fn file_(suffix: &str) -> PathBuf {
-        let name = format!("{}{}", *APP_NAME.read().unwrap(), suffix);
+        let name = format!("{}{}", data_dir_name(), suffix);
         Config::with_extension(Self::path(name))
     }
 
@@ -805,9 +817,7 @@ impl Config {
             #[cfg(target_os = "macos")]
             let org = ORG.read().unwrap().clone();
             // /var/root for root
-            if let Some(project) =
-                directories_next::ProjectDirs::from("", &org, &APP_NAME.read().unwrap())
-            {
+            if let Some(project) = directories_next::ProjectDirs::from("", &org, &data_dir_name()) {
                 let mut path = patch(project.config_dir().to_path_buf());
                 path.push(p);
                 return path;
@@ -827,21 +837,21 @@ impl Config {
         #[cfg(target_os = "macos")]
         {
             if let Some(path) = dirs_next::home_dir().as_mut() {
-                path.push(format!("Library/Logs/{}", *APP_NAME.read().unwrap()));
+                path.push(format!("Library/Logs/{}", data_dir_name()));
                 return path.clone();
             }
         }
         #[cfg(target_os = "linux")]
         {
             let mut path = Self::get_home();
-            path.push(format!(".local/share/logs/{}", *APP_NAME.read().unwrap()));
+            path.push(format!(".local/share/logs/{}", data_dir_name()));
             std::fs::create_dir_all(&path).ok();
             return path;
         }
         #[cfg(target_os = "android")]
         {
             let mut path = Self::get_home();
-            path.push(format!("{}/Logs", *APP_NAME.read().unwrap()));
+            path.push(format!("{}/Logs", data_dir_name()));
             std::fs::create_dir_all(&path).ok();
             return path;
         }
@@ -2548,7 +2558,7 @@ pub struct Ab {
 
 impl Ab {
     fn path() -> PathBuf {
-        let filename = format!("{}_ab", APP_NAME.read().unwrap().clone());
+        let filename = format!("{}_ab", data_dir_name());
         Config::path(filename)
     }
 
@@ -2678,7 +2688,7 @@ pub struct Group {
 
 impl Group {
     fn path() -> PathBuf {
-        let filename = format!("{}_group", APP_NAME.read().unwrap().clone());
+        let filename = format!("{}_group", data_dir_name());
         Config::path(filename)
     }
 

@@ -640,8 +640,10 @@ class _DesktopTabState extends State<DesktopTab>
                         ),
                         Offstage(
                             offstage: !showTitle,
+                            // nome da marca: manter igual ao APP_NAME do Rust
+                            // (libs/hbb_common/src/config.rs)
                             child: const Text(
-                              "RustDesk",
+                              "Ecletica Connect",
                               style: TextStyle(fontSize: 13),
                             ).marginOnly(left: 2))
                       ]).marginOnly(

@@ -84,6 +84,14 @@ def make_parser():
         "--app-name", type=str, default="RustDesk", help="The app name."
     )
     parser.add_argument(
+        "--data-dir",
+        type=str,
+        default="",
+        help="Nome da pasta de dados (AppData). Vazio = igual ao nome do app. "
+        "Fica separado de proposito: renomear a marca nao pode trocar a pasta de "
+        "dados, que guarda a ID da maquina, a senha e a agenda (10/10/2026).",
+    )
+    parser.add_argument(
         "-v", "--version", type=str, default="", help="The app version."
     )
     parser.add_argument(
@@ -241,9 +249,21 @@ def put_app_exe_on_media2():
     return True
 
 
+# Semente do UpgradeCode. NAO trocar: e o que diz ao Windows que o instalador novo e o
+# MESMO produto (atualiza por cima, remove a versao antiga). Na virada do nome
+# (10/10/2026) ela ficou congelada na semente antiga de proposito -- seguir o nome do
+# produto faria o instalador novo instalar AO LADO do antigo (dois servicos, duas IDs).
+UPGRADE_CODE_SEED = "RustDesk.exe"
+
+# Servico deixado pela versao antiga do NOSSO app. Ele foi criado pelo proprio app (nao
+# pertence a nenhum MSI), entao a atualizacao por cima nao o remove: sem esta limpeza o
+# servico fica apontando para um .exe que a atualizacao apagou.
+LEGACY_SERVICE_NAME = "Ecletica Acesso Remoto"
+
+
 def gen_pre_vars(args, dist_dir):
     def func(lines, index_start):
-        upgrade_code = uuid.uuid5(uuid.NAMESPACE_OID, app_name + ".exe")
+        upgrade_code = uuid.uuid5(uuid.NAMESPACE_OID, UPGRADE_CODE_SEED)
 
         indent = g_indent_unit * 1
         to_insert_lines = [
@@ -252,6 +272,8 @@ def gen_pre_vars(args, dist_dir):
             f'{indent}<?define Product="{args.app_name}" ?>\n',
             f'{indent}<?define Description="{args.app_name} Installer" ?>\n',
             f'{indent}<?define ProductLower="{args.app_name.lower()}" ?>\n',
+            f'{indent}<?define DataDir="{args.data_dir or args.app_name}" ?>\n',
+            f'{indent}<?define LegacyServiceName="{LEGACY_SERVICE_NAME}" ?>\n',
             f'{indent}<?define RegKeyRoot=".$(var.ProductLower)" ?>\n',
             f'{indent}<?define RegKeyInstall="$(var.RegKeyRoot)\\Install" ?>\n',
             f'{indent}<?define BuildDir="{dist_dir}" ?>\n',
@@ -464,11 +486,13 @@ def init_global_vars(dist_dir, app_name, args):
     dist_app = dist_dir.joinpath(app_name + ".exe")
 
     def read_process_output(args):
+        # Sem shell e com o caminho como item de lista: o nome do app tem espaco
+        # ("Ecletica Connect") e, sem aspas, o shell cortava o caminho no primeiro
+        # espaco e a rodada morria aqui (visto no ensaio de 10/10/2026).
         process = subprocess.Popen(
-            f"{dist_app} {args}",
+            [str(dist_app), *str(args).split()],
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            shell=True,
         )
         output, _ = process.communicate()
         return output.decode("utf-8").strip()
@@ -498,14 +522,15 @@ def init_global_vars(dist_dir, app_name, args):
 
 
 def update_license_file(app_name):
-    if app_name == "RustDesk":
-        return
+    # O texto da licenca e a AGPL-3.0 do RustDesk (Purslane Tech Pte. Ltd.) e os avisos de
+    # copyright do projeto original TEM de continuar na tela de instalacao -- trocar
+    # "RustDesk"/"Purslane" pelo nosso nome (o que a versao anterior fazia quando o nome
+    # mudava) apagaria a atribuicao que a AGPL exige. Sai apenas o convite a visitar o
+    # site deles; o resto fica como esta (decisao de 10/10/2026).
     license_file = Path(sys.argv[0]).parent.joinpath("Package/License.rtf")
     with open(license_file, "r", encoding="utf-8") as f:
         license_content = f.read()
     license_content = license_content.replace("website rustdesk.com and other ", "")
-    license_content = license_content.replace("RustDesk", app_name)
-    license_content = re.sub(r"Purslane(?: Tech Pte\.)? Ltd", app_name, license_content, flags=re.IGNORECASE)
     with open(license_file, "w", encoding="utf-8") as f:
         f.write(license_content)
 
