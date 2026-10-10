@@ -1232,8 +1232,8 @@ bootout_agents() {{
     stopping_loginwindow_asid=""
     for agent_uid in {uid_list}; do
         if [ "$agent_uid" != "0" ]; then
-            launchctl bootout gui/"$agent_uid"/{agent_label} 2>/dev/null || true
-            launchctl bootout user/"$agent_uid"/{agent_label} 2>/dev/null || true
+            launchctl bootout "gui/$agent_uid/{agent_label}" 2>/dev/null || true
+            launchctl bootout "user/$agent_uid/{agent_label}" 2>/dev/null || true
         else
             # LoginWindow jobs run in a login/<asid> domain even though
             # legacy root `launchctl load` is issued from the system context.
@@ -1242,17 +1242,17 @@ bootout_agents() {{
             launchctl unload -w -S LoginWindow "{agent_plist}" 2>/dev/null || true
             stopping_loginwindow_asid=$(loginwindow_asid || true)
             if [ -n "$stopping_loginwindow_asid" ]; then
-                launchctl bootout login/"$stopping_loginwindow_asid"/{agent_label} 2>/dev/null || true
+                launchctl bootout "login/$stopping_loginwindow_asid/{agent_label}" 2>/dev/null || true
             fi
-            launchctl bootout user/0/{agent_label} 2>/dev/null || true
-            launchctl bootout system/{agent_label} 2>/dev/null || true
+            launchctl bootout "user/0/{agent_label}" 2>/dev/null || true
+            launchctl bootout "system/{agent_label}" 2>/dev/null || true
             launchctl unload -w "{agent_plist}" 2>/dev/null || true
         fi
     done
 }}
 find_agent_pid() {{
     agent_uid="$1"
-    for candidate_pid in $(pgrep -u "$agent_uid" -x {app_name} 2>/dev/null || true); do
+    for candidate_pid in $(pgrep -u "$agent_uid" -x "{app_name}" 2>/dev/null || true); do
         process_args=$(ps -p "$candidate_pid" -o args= 2>/dev/null || true)
         if printf '%s\n' "$process_args" | grep -F "/Applications/{app_name}.app/Contents/MacOS/{app_name}" >/dev/null && \
            printf '%s\n' "$process_args" | grep -E '(^|[[:space:]])--server([[:space:]]|$)' >/dev/null; then
@@ -1264,8 +1264,8 @@ find_agent_pid() {{
 }}
 launchd_agent_pid() {{
     agent_uid="$1"
-    agent_info=$(launchctl print gui/"$agent_uid"/{agent_label} 2>/dev/null || \
-        launchctl print user/"$agent_uid"/{agent_label} 2>/dev/null || true)
+    agent_info=$(launchctl print "gui/$agent_uid/{agent_label}" 2>/dev/null || \
+        launchctl print "user/$agent_uid/{agent_label}" 2>/dev/null || true)
     agent_job_pid=$(printf '%s\n' "$agent_info" | awk '/^[[:space:]]*pid = / {{print $3; exit}}')
     if [ -n "$agent_job_pid" ] && \
        printf '%s\n' "$agent_info" | grep -E '^[[:space:]]*state = running[[:space:]]*$' >/dev/null; then
@@ -1296,7 +1296,7 @@ agent_process_matches() {{
 capture_stopping_agent_pids() {{
     stopping_agent_pids=""
     for agent_uid in {uid_list}; do
-        for candidate_pid in $(pgrep -u "$agent_uid" -x {app_name} 2>/dev/null || true); do
+        for candidate_pid in $(pgrep -u "$agent_uid" -x "{app_name}" 2>/dev/null || true); do
             if agent_process_matches "$agent_uid" "$candidate_pid"; then
                 stopping_agent_pids="$stopping_agent_pids $candidate_pid"
             fi
@@ -1305,7 +1305,7 @@ capture_stopping_agent_pids() {{
 }}
 terminate_agent_processes() {{
     for agent_uid in {uid_list}; do
-        for candidate_pid in $(pgrep -u "$agent_uid" -x {app_name} 2>/dev/null || true); do
+        for candidate_pid in $(pgrep -u "$agent_uid" -x "{app_name}" 2>/dev/null || true); do
             if agent_process_matches "$agent_uid" "$candidate_pid"; then
                 kill -KILL "$candidate_pid" 2>/dev/null || true
             fi
@@ -1314,7 +1314,7 @@ terminate_agent_processes() {{
 }}
 terminate_user_bundle_processes() {{
     for agent_uid in {uid_list}; do
-        for candidate_pid in $(pgrep -u "$agent_uid" -x {app_name} 2>/dev/null || true); do
+        for candidate_pid in $(pgrep -u "$agent_uid" -x "{app_name}" 2>/dev/null || true); do
             process_args=$(ps -p "$candidate_pid" -o args= 2>/dev/null || true)
             if printf '%s\n' "$process_args" | grep -F "/Applications/{app_name}.app/" >/dev/null; then
                 kill -KILL "$candidate_pid" 2>/dev/null || true
@@ -1324,7 +1324,7 @@ terminate_user_bundle_processes() {{
 }}
 user_bundle_processes_absent() {{
     for agent_uid in {uid_list}; do
-        for candidate_pid in $(pgrep -u "$agent_uid" -x {app_name} 2>/dev/null || true); do
+        for candidate_pid in $(pgrep -u "$agent_uid" -x "{app_name}" 2>/dev/null || true); do
             process_args=$(ps -p "$candidate_pid" -o args= 2>/dev/null || true)
             if printf '%s\n' "$process_args" | grep -F "/Applications/{app_name}.app/" >/dev/null; then
                 return 1
@@ -1348,17 +1348,17 @@ stop_user_bundle_processes() {{
 agent_jobs_absent() {{
     for agent_uid in {uid_list}; do
         if [ "$agent_uid" != "0" ]; then
-            if launchctl print gui/"$agent_uid"/{agent_label} >/dev/null 2>&1 || \
-               launchctl print user/"$agent_uid"/{agent_label} >/dev/null 2>&1; then
+            if launchctl print "gui/$agent_uid/{agent_label}" >/dev/null 2>&1 || \
+               launchctl print "user/$agent_uid/{agent_label}" >/dev/null 2>&1; then
                 return 1
             fi
         else
-            if launchctl print system/{agent_label} >/dev/null 2>&1 || \
-               launchctl print user/0/{agent_label} >/dev/null 2>&1; then
+            if launchctl print "system/{agent_label}" >/dev/null 2>&1 || \
+               launchctl print "user/0/{agent_label}" >/dev/null 2>&1; then
                 return 1
             fi
             if [ -n "$stopping_loginwindow_asid" ] && \
-               launchctl print login/"$stopping_loginwindow_asid"/{agent_label} >/dev/null 2>&1; then
+               launchctl print "login/$stopping_loginwindow_asid/{agent_label}" >/dev/null 2>&1; then
                 return 1
             fi
         fi
@@ -1423,7 +1423,7 @@ agent_ready() {{
     return 1
 }}
 daemon_snapshot_stable() {{
-    stable_daemon_info=$(launchctl print system/{daemon_label} 2>/dev/null || true)
+    stable_daemon_info=$(launchctl print "system/{daemon_label}" 2>/dev/null || true)
     stable_daemon_pid=$(printf '%s\n' "$stable_daemon_info" | awk '/^[[:space:]]*pid = / {{print $3; exit}}')
     [ -n "$daemon_pid" ] && \
         [ "$stable_daemon_pid" = "$daemon_pid" ] && \
@@ -1434,7 +1434,7 @@ daemon_snapshot_stable() {{
 daemon_ready() {{
     daemon_pid=""
     for _ in $(/usr/bin/seq 1 30); do
-        daemon_info=$(launchctl print system/{daemon_label} 2>/dev/null || true)
+        daemon_info=$(launchctl print "system/{daemon_label}" 2>/dev/null || true)
         daemon_pid=$(printf '%s\n' "$daemon_info" | awk '/^[[:space:]]*pid = / {{print $3; exit}}')
         if [ -n "$daemon_pid" ] && \
            printf '%s\n' "$daemon_info" | grep -E '^[[:space:]]*state = running[[:space:]]*$' >/dev/null && \
@@ -1448,20 +1448,20 @@ daemon_ready() {{
     return 1
 }}
 capture_stopping_daemon_pid() {{
-    stopping_daemon_info=$(launchctl print system/{daemon_label} 2>/dev/null || true)
+    stopping_daemon_info=$(launchctl print "system/{daemon_label}" 2>/dev/null || true)
     stopping_daemon_pid=$(printf '%s\n' "$stopping_daemon_info" | awk '/^[[:space:]]*pid = / {{print $3; exit}}')
 }}
 daemon_stopped() {{
     if [ -n "$stopping_daemon_pid" ] && kill -0 "$stopping_daemon_pid" 2>/dev/null; then
         return 1
     fi
-    ! launchctl print system/{daemon_label} >/dev/null 2>&1
+    ! launchctl print "system/{daemon_label}" >/dev/null 2>&1
 }}
 stop_daemon() {{
     capture_stopping_daemon_pid
     # Command status is advisory. daemon_stopped verifies that both the
     # captured process generation and launchd registration are gone.
-    launchctl bootout system/{daemon_label} 2>/dev/null || \
+    launchctl bootout "system/{daemon_label}" 2>/dev/null || \
         launchctl unload -w "{daemon_plist}" 2>/dev/null || true
     for _ in $(/usr/bin/seq 1 30); do
         if daemon_stopped; then
@@ -1473,7 +1473,7 @@ stop_daemon() {{
     return 1
 }}
 write_new_plists() {{
-    /Applications/{app_name}.app/Contents/MacOS/service --write-plists \
+    "/Applications/{app_name}.app/Contents/MacOS/service" --write-plists \
         >"{tmp_dir}/write-plists.log" 2>&1 &
     write_pid=$!
     for _ in $(/usr/bin/seq 1 60); do
@@ -1546,7 +1546,7 @@ rollback_transaction() {{
 trap rollback_transaction EXIT
 gui_uids=""
 for agent_uid in {uid_list}; do
-    for pid in $(pgrep -u "$agent_uid" -x {app_name} || true); do
+    for pid in $(pgrep -u "$agent_uid" -x "{app_name}" || true); do
         process_args=$(ps -p "$pid" -o args= 2>/dev/null || true)
         if printf '%s\n' "$process_args" | grep -F "/Applications/{app_name}.app/" >/dev/null && \
            ! printf '%s\n' "$process_args" | grep -E "(^|[[:space:]])(--server|--service|--update)([[:space:]]|$)" >/dev/null; then
@@ -1593,35 +1593,35 @@ if [ ! -d "$staged_bundle/Contents/MacOS" ] || \
     rm -rf "$staged_bundle"
     exit 1
 fi
-if ! mv {app_bundle} {app_bundle}.bak; then
+if ! mv "{app_bundle}" "{app_bundle}.bak"; then
     echo "[root-update] backup mv failed, aborting" >> {tmp_dir}/rustdesk_root_update.log
     rm -rf "$staged_bundle"
     exit 1
 fi
 bundle_swapped=1
-if ! mv "$staged_bundle" {app_bundle}; then
+if ! mv "$staged_bundle" "{app_bundle}"; then
     echo "[root-update] replacement mv failed, restoring backup" >> {tmp_dir}/rustdesk_root_update.log
     exit 1
 fi
 # Install the entire bundle as root-owned.  The LaunchDaemon executes code
 # from this bundle, so no nested framework, helper, or resource may remain
 # user-writable.
-if ! chown -R root:wheel {app_bundle} || ! chmod -R go-w {app_bundle}; then
+if ! chown -R root:wheel "{app_bundle}" || ! chmod -R go-w {app_bundle}; then
     echo "[root-update] chown failed, restoring backup" >> {tmp_dir}/rustdesk_root_update.log
     exit 1
 fi
-xattr -r -d com.apple.quarantine {app_bundle} || true
+xattr -r -d com.apple.quarantine "{app_bundle}" || true
 # Keep root-executed files AND entire ancestor chain root-owned — prevent privilege escalation
-if ! chown root:wheel {app_bundle} || \
-   ! chmod 755 {app_bundle} || \
-   ! chown root:wheel {app_bundle}/Contents || \
-   ! chmod 755 {app_bundle}/Contents || \
-   ! chown root:wheel {app_bundle}/Contents/MacOS || \
-   ! chmod 755 {app_bundle}/Contents/MacOS || \
-   ! chown root:wheel {app_bundle}/Contents/MacOS/service || \
-   ! chmod 755 {app_bundle}/Contents/MacOS/service || \
-   ! chown root:wheel {app_bundle}/Contents/MacOS/{app_name} || \
-   ! chmod 755 {app_bundle}/Contents/MacOS/{app_name}; then
+if ! chown root:wheel "{app_bundle}" || \
+   ! chmod 755 "{app_bundle}" || \
+   ! chown root:wheel "{app_bundle}/Contents" || \
+   ! chmod 755 "{app_bundle}/Contents" || \
+   ! chown root:wheel "{app_bundle}/Contents/MacOS" || \
+   ! chmod 755 "{app_bundle}/Contents/MacOS" || \
+   ! chown root:wheel "{app_bundle}/Contents/MacOS/service" || \
+   ! chmod 755 "{app_bundle}/Contents/MacOS/service" || \
+   ! chown root:wheel "{app_bundle}/Contents/MacOS/{app_name}" || \
+   ! chmod 755 "{app_bundle}/Contents/MacOS/{app_name}"; then
     echo "[root-update] hardening failed, restoring backup" >> {tmp_dir}/rustdesk_root_update.log
     exit 1
 fi
