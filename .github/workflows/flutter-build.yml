@@ -213,12 +213,34 @@ jobs:
       # windows-x64-release.zip is built for the 3.24-era x64 engine (matches FLUTTER_VERSION).
       - name: Replace engine with rustdesk custom flutter engine
         if: ${{ matrix.job.arch == 'x86_64' }}
+        # Nao confiar no PATH: se a exportacao do subosito falhar, `flutter` some do PATH e o job
+        # morre aqui (aconteceu na rodada 39, em 10/10/2026). Resolve o SDK pelo proprio passo do
+        # Flutter, poe no PATH deste e dos proximos passos, e falha alto se o binario nao existir.
         run: |
-          flutter doctor -v
-          flutter precache --windows
+          $flutterRoot = "${{ steps.flutter.outputs['CACHE-PATH'] }}"
+          if (-not $flutterRoot) { $flutterRoot = "C:/hostedtoolcache/windows/flutter/stable-${{ env.FLUTTER_VERSION }}-x64" }
+          $flutterBin = Join-Path $flutterRoot "bin"
+          if (-not (Test-Path (Join-Path $flutterBin "flutter.bat"))) {
+            $flutterRoot = "C:/hostedtoolcache/windows/flutter/stable-${{ env.FLUTTER_VERSION }}-x64"
+            $flutterBin = Join-Path $flutterRoot "bin"
+          }
+          if (-not (Test-Path (Join-Path $flutterBin "flutter.bat"))) {
+            Write-Error "Nao achei o flutter em $flutterRoot (FLUTTER_ROOT=$env:FLUTTER_ROOT)"
+            exit 1
+          }
+          Write-Host "Flutter root: $flutterRoot"
+          $env:PATH = "$flutterBin;$env:PATH"
+          $flutterBin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          & (Join-Path $flutterBin "flutter.bat") doctor -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & (Join-Path $flutterBin "flutter.bat") precache --windows
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Invoke-WebRequest -Uri https://github.com/rustdesk/engine/releases/download/main/windows-x64-release.zip -OutFile windows-x64-release.zip
           Expand-Archive -Path windows-x64-release.zip -DestinationPath windows-x64-release
-          mv -Force windows-x64-release/*  C:/hostedtoolcache/windows/flutter/stable-${{ env.FLUTTER_VERSION }}-x64/bin/cache/artifacts/engine/windows-x64-release/
+          $engineDir = Join-Path $flutterRoot "bin/cache/artifacts/engine/windows-x64-release"
+          if (-not (Test-Path $engineDir)) { New-Item -ItemType Directory -Force -Path $engineDir | Out-Null }
+          mv -Force windows-x64-release/* $engineDir/
+          Write-Host "Engine customizada instalada em $engineDir"
 
       - name: Patch flutter
         # x64 stays on Flutter 3.24.5, which needs the dropdown filter patch.
@@ -226,8 +248,11 @@ jobs:
         if: ${{ matrix.job.arch == 'x86_64' }}
         shell: bash
         run: |
-          cp .github/patches/flutter_3.24.4_dropdown_menu_enableFilter.diff $(dirname $(dirname $(which flutter)))
-          cd $(dirname $(dirname $(which flutter)))
+          FL="${{ steps.flutter.outputs['CACHE-PATH'] }}"
+          if [ ! -x "$FL/bin/flutter" ]; then FL="C:/hostedtoolcache/windows/flutter/stable-${{ env.FLUTTER_VERSION }}-x64"; fi
+          export PATH="$FL/bin:$PATH"
+          cp .github/patches/flutter_3.24.4_dropdown_menu_enableFilter.diff "$FL"
+          cd "$FL"
           if [[ "3.24.5" == ${{env.FLUTTER_VERSION}} ]]; then
             git apply flutter_3.24.4_dropdown_menu_enableFilter.diff
           fi
