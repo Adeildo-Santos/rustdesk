@@ -109,7 +109,7 @@ jobs:
       target_version: Windows10
 
   build-for-windows-flutter:
-    if: ${{ inputs.somente != 'mac' }}
+    if: ${{ inputs.somente == 'windows' || inputs.somente == 'todos' }}
     name: ${{ matrix.job.target }}
     needs: [build-RustDeskTempTopMostWindow, generate-bridge]
     runs-on: ${{ matrix.job.os }}
@@ -877,7 +877,7 @@ jobs:
 
 
   build-for-macOS:
-    if: ${{ inputs.somente != 'windows' }}
+    if: ${{ inputs.somente == 'mac' || inputs.somente == 'todos' }}
     name: ${{ matrix.job.target }}
     runs-on: ${{ matrix.job.os }}
     needs: [generate-bridge]
@@ -1197,6 +1197,10 @@ jobs:
     needs: [generate-bridge]
     name: build rustdesk android apk ${{ matrix.job.target }}
     runs-on: ${{ matrix.job.os }}
+    # Ecletica: o passo de assinar testa env.ANDROID_SIGNING_KEY; sem isso aqui ele era pulado
+    # e o APK saia com a chave de depuracao.
+    env:
+      ANDROID_SIGNING_KEY: ${{ secrets.ANDROID_SIGNING_KEY }}
     strategy:
       fail-fast: false
       matrix:
