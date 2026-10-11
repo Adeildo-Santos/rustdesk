@@ -21,7 +21,7 @@ on:
         required: false
         default: "ecletica"
       somente:
-        description: "Rodar so o Mac (mac), so o Windows (windows) ou tudo (todos)"
+        description: "Rodar so o Mac (mac), so o Windows (windows), so o Android (android) ou tudo (todos)"
         required: false
         default: "todos"
 

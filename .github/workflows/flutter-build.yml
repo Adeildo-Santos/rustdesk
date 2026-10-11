@@ -1191,7 +1191,9 @@ jobs:
           files: rustdesk-${{ env.VERSION }}-unsigned.tar.gz
 
   build-rustdesk-android:
-    if: false
+    # Ecletica: liga só quando pedido de proposito (Actions -> Run workflow -> somente = android).
+    # Sem isso, o build normal continua sendo so Windows + macOS.
+    if: ${{ inputs.somente == 'android' }}
     needs: [generate-bridge]
     name: build rustdesk android apk ${{ matrix.job.target }}
     runs-on: ${{ matrix.job.os }}
