@@ -147,3 +147,11 @@ sciter-rs = { path = "vendor-git/rust-sciter" }
 
 [patch."https://github.com/open-trade/confy"]
 confy = { path = "vendor-git/confy" }
+
+# libsodium-sys 0.2.7 escolhia a biblioteca pre-empacotada pela arquitetura de QUEM COMPILA
+# (o auxiliar, sempre 64 bits) e nao pela do ALVO: num alvo de 32 bits o linker morria com
+# LNK2019 (sodium_pad, sodium_memzero, crypto_box_seal). O codigo em vendor/libsodium-sys
+# esta igual ao original, com apenas esse ponto corrigido (escolhe pelo ALVO e aceita
+# SODIUM_LIB_DIR_32 / SODIUM_LIB_DIR_64).
+[patch.crates-io]
+libsodium-sys = { path = "vendor/libsodium-sys" }

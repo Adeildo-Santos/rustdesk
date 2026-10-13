@@ -61,8 +61,14 @@ jobs:
           $raiz = $env:VCPKG_INSTALLATION_ROOT
           if (-not $raiz) { throw "vcpkg nao encontrado nesta imagem do Windows" }
           "VCPKG_ROOT=$raiz" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding ascii
-          & "$raiz\vcpkg" install libvpx libyuv opus libsodium --triplet x86-windows-static --clean-after-build
+          & "$raiz\vcpkg" install libvpx libyuv opus --triplet x86-windows-static --clean-after-build
           if ($LASTEXITCODE -ne 0) { throw "falhou ao instalar as bibliotecas no vcpkg" }
+          # a libsodium e usada pelos DOIS lados (o auxiliar de 64 e o programa de 32), entao
+          # ela precisa existir nas duas arquiteturas.
+          & "$raiz\vcpkg" install libsodium --triplet x86-windows-static --clean-after-build
+          if ($LASTEXITCODE -ne 0) { throw "falhou ao instalar a libsodium de 32 bits no vcpkg" }
+          & "$raiz\vcpkg" install libsodium --triplet x64-windows-static --clean-after-build
+          if ($LASTEXITCODE -ne 0) { throw "falhou ao instalar a libsodium de 64 bits no vcpkg" }
 
       # O bindgen 0.59 (2021) usa o libclang da maquina; com o clang novo do runner
       # ele morre em "LexError" ao gerar as ligacoes do libvpx. Pina o LLVM da epoca.
@@ -101,32 +107,30 @@ jobs:
           cargo fetch --target i686-pc-windows-msvc 2>&1 | Tee-Object -FilePath fetch.log | Out-Null
           if ($LASTEXITCODE -ne 0) { Get-Content fetch.log -Tail 60; throw "falhou ao baixar as dependencias" }
 
-          # 2) libsodium: o crate 0.2.7 traz uma versao pre-empacotada e escolhe a pasta pela
-          #    arquitetura da MAQUINA (x64), entao num alvo de 32 bits o linker morre com
-          #    LNK2019 (sodium_pad, sodium_memzero, crypto_box_seal...). Usamos a que o vcpkg
-          #    construiu na hora para o alvo de 32 bits; se ela faltar, caímos na pasta Win32
-          #    que vem dentro do proprio crate. Copiamos sempre com o nome libsodium.lib para
-          #    nao depender de como cada um batizou o arquivo.
-          #    (NAO usar SODIUM_STATIC: o build.rs aborta — foi trocado por SODIUM_SHARED.)
-          $jp = Join-Path $env:RUNNER_TEMP "sodium32"
-          New-Item -ItemType Directory -Force -Path $jp | Out-Null
-          $vplib = Join-Path $env:VCPKG_ROOT "installed\x86-windows-static\lib"
-          $f = Get-ChildItem $vplib -Filter "*sodium*.lib" -ErrorAction SilentlyContinue |
-            Select-Object -First 1
-          if ($f) {
-            Copy-Item $f.FullName (Join-Path $jp "libsodium.lib") -Force
-            Write-Host "libsodium do vcpkg: $($f.Name) ($($f.Length) bytes)"
-          } else {
-            $alvo = "libsodium-sys-0.2.7\msvc\Win32\Release\v142\libsodium.lib"
-            $cr = Get-ChildItem (Join-Path $env:USERPROFILE ".cargo\registry\src") -Directory -ErrorAction SilentlyContinue |
-              ForEach-Object { Join-Path $_.FullName $alvo } |
-              Where-Object { Test-Path $_ } | Select-Object -First 1
-            if (-not $cr) { throw "nao achei libsodium nenhuma (nem no vcpkg, nem no crate)" }
-            Copy-Item $cr (Join-Path $jp "libsodium.lib") -Force
-            Write-Host "libsodium do crate (Win32): $cr"
+          # 2) libsodium: o crate 0.2.7 escolhia a biblioteca pre-empacotada pela arquitetura de
+          #    QUEM COMPILA (o auxiliar de 64 bits) e nao pela do ALVO, entao num alvo de 32
+          #    bits o linker morria com LNK2019 (sodium_pad, sodium_memzero, crypto_box_seal).
+          #    O crate foi trazido para vendor/libsodium-sys com esse ponto corrigido: agora ele
+          #    olha o ALVO e aceita SODIUM_LIB_DIR_32 / SODIUM_LIB_DIR_64. Como a biblioteca e
+          #    usada pelos dois lados, apontamos as duas para o que o vcpkg construiu em cada
+          #    arquitetura. (NAO usar SODIUM_STATIC: o build.rs aborta — trocado por SODIUM_SHARED.)
+          $j32 = Join-Path $env:RUNNER_TEMP "sodium\x86"
+          $j64 = Join-Path $env:RUNNER_TEMP "sodium\x64"
+          New-Item -ItemType Directory -Force -Path $j32, $j64 | Out-Null
+          function Pega-Sodium($triplet, $destino) {
+            $dir = Join-Path $env:VCPKG_ROOT "installed\$triplet\lib"
+            $f = Get-ChildItem $dir -Recurse -Filter "*sodium*.lib" -ErrorAction SilentlyContinue |
+              Select-Object -First 1
+            if (-not $f) { throw "o vcpkg nao trouxe libsodium para $triplet" }
+            Copy-Item $f.FullName (Join-Path $destino "libsodium.lib") -Force
+            Write-Host "libsodium $triplet : $($f.Name) ($($f.Length) bytes)"
           }
-          $env:SODIUM_LIB_DIR = $jp
-          Write-Host "SODIUM_LIB_DIR = $env:SODIUM_LIB_DIR"
+          Pega-Sodium "x86-windows-static" $j32
+          Pega-Sodium "x64-windows-static" $j64
+          $env:SODIUM_LIB_DIR_32 = $j32
+          $env:SODIUM_LIB_DIR_64 = $j64
+          Write-Host "SODIUM_LIB_DIR_32 = $env:SODIUM_LIB_DIR_32"
+          Write-Host "SODIUM_LIB_DIR_64 = $env:SODIUM_LIB_DIR_64"
 
           # 3) compilar
           cargo build --release --target i686-pc-windows-msvc 2>&1 | Tee-Object -FilePath build.log
