@@ -45,6 +45,23 @@ jobs:
           "@ | Set-Content -Encoding ascii (Join-Path $dir "config.toml")
           Get-Content (Join-Path $dir "config.toml")
 
+      # O build (raiz, libs/scrap e magnum-opus) precisa das bibliotecas de audio e
+      # video compiladas e apontadas por VCPKG_ROOT; sem elas para com "NotPresent".
+      - name: vcpkg — bibliotecas de audio e video (32 bits)
+        shell: pwsh
+        run: |
+          $raiz = $env:VCPKG_INSTALLATION_ROOT
+          if (-not $raiz) { throw "vcpkg nao encontrado nesta imagem do Windows" }
+          "VCPKG_ROOT=$raiz" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding ascii
+          & "$raiz\vcpkg" install libvpx libyuv opus --triplet x86-windows-static --clean-after-build
+          if ($LASTEXITCODE -ne 0) { throw "falhou ao instalar as bibliotecas no vcpkg" }
+
+      - name: Guardar o vcpkg em cache
+        uses: actions/cache@v4
+        with:
+          path: C:\vcpkg\installed
+          key: vcpkg-x86-windows-static-v1
+
       - name: Biblioteca do sciter (32 bits)
         shell: pwsh
         run: |
