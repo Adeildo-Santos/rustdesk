@@ -47,20 +47,22 @@ jobs:
 
       # O build (raiz, libs/scrap e magnum-opus) precisa das bibliotecas de audio e
       # video compiladas e apontadas por VCPKG_ROOT; sem elas para com "NotPresent".
-      - name: vcpkg — bibliotecas de audio e video (32 bits)
+      # O cache vem ANTES do install: assim ele e restaurado de verdade (antes estava
+      # depois e nao servia para nada).
+      - name: Guardar/restaurar o vcpkg em cache
+        uses: actions/cache@v4
+        with:
+          path: C:\vcpkg\installed
+          key: vcpkg-x86-windows-static-v2
+
+      - name: vcpkg — bibliotecas de audio, video e cripto (32 bits)
         shell: pwsh
         run: |
           $raiz = $env:VCPKG_INSTALLATION_ROOT
           if (-not $raiz) { throw "vcpkg nao encontrado nesta imagem do Windows" }
           "VCPKG_ROOT=$raiz" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding ascii
-          & "$raiz\vcpkg" install libvpx libyuv opus --triplet x86-windows-static --clean-after-build
+          & "$raiz\vcpkg" install libvpx libyuv opus libsodium --triplet x86-windows-static --clean-after-build
           if ($LASTEXITCODE -ne 0) { throw "falhou ao instalar as bibliotecas no vcpkg" }
-
-      - name: Guardar o vcpkg em cache
-        uses: actions/cache@v4
-        with:
-          path: C:\vcpkg\installed
-          key: vcpkg-x86-windows-static-v1
 
       # O bindgen 0.59 (2021) usa o libclang da maquina; com o clang novo do runner
       # ele morre em "LexError" ao gerar as ligacoes do libvpx. Pina o LLVM da epoca.
@@ -99,21 +101,44 @@ jobs:
           cargo fetch --target i686-pc-windows-msvc 2>&1 | Tee-Object -FilePath fetch.log | Out-Null
           if ($LASTEXITCODE -ne 0) { Get-Content fetch.log -Tail 60; throw "falhou ao baixar as dependencias" }
 
-          # 2) o crate da libsodium (0.2.7) escolhe a biblioteca pre-construida pela arquitetura da
-          #    MAQUINA (x64) em vez da do ALVO (32 bits), e o linker morre com LNK2019/LNK1120
-          #    por falta dos simbolos do sodium. Dentro do proprio crate existe a pasta Win32.
+          # 2) libsodium: o crate 0.2.7 traz uma versao pre-empacotada e escolhe a pasta pela
+          #    arquitetura da MAQUINA (x64), entao num alvo de 32 bits o linker morre com
+          #    LNK2019 (sodium_pad, sodium_memzero, crypto_box_seal...). Usamos a que o vcpkg
+          #    construiu na hora para o alvo de 32 bits; se ela faltar, caímos na pasta Win32
+          #    que vem dentro do proprio crate. Copiamos sempre com o nome libsodium.lib para
+          #    nao depender de como cada um batizou o arquivo.
           #    (NAO usar SODIUM_STATIC: o build.rs aborta — foi trocado por SODIUM_SHARED.)
-          $alvo = "libsodium-sys-0.2.7\msvc\Win32\Release\v142\libsodium.lib"
-          $lib = Get-ChildItem (Join-Path $env:USERPROFILE ".cargo\registry\src") -Directory -ErrorAction SilentlyContinue |
-            ForEach-Object { Join-Path $_.FullName $alvo } |
-            Where-Object { Test-Path $_ } | Select-Object -First 1
-          if (-not $lib) { throw "nao achei a libsodium de 32 bits (Win32) no crate" }
-          $env:SODIUM_LIB_DIR = Split-Path $lib -Parent
-          Write-Host "libsodium de 32 bits: $env:SODIUM_LIB_DIR\libsodium.lib"
+          $jp = Join-Path $env:RUNNER_TEMP "sodium32"
+          New-Item -ItemType Directory -Force -Path $jp | Out-Null
+          $vplib = Join-Path $env:VCPKG_ROOT "installed\x86-windows-static\lib"
+          $f = Get-ChildItem $vplib -Filter "*sodium*.lib" -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+          if ($f) {
+            Copy-Item $f.FullName (Join-Path $jp "libsodium.lib") -Force
+            Write-Host "libsodium do vcpkg: $($f.Name) ($($f.Length) bytes)"
+          } else {
+            $alvo = "libsodium-sys-0.2.7\msvc\Win32\Release\v142\libsodium.lib"
+            $cr = Get-ChildItem (Join-Path $env:USERPROFILE ".cargo\registry\src") -Directory -ErrorAction SilentlyContinue |
+              ForEach-Object { Join-Path $_.FullName $alvo } |
+              Where-Object { Test-Path $_ } | Select-Object -First 1
+            if (-not $cr) { throw "nao achei libsodium nenhuma (nem no vcpkg, nem no crate)" }
+            Copy-Item $cr (Join-Path $jp "libsodium.lib") -Force
+            Write-Host "libsodium do crate (Win32): $cr"
+          }
+          $env:SODIUM_LIB_DIR = $jp
+          Write-Host "SODIUM_LIB_DIR = $env:SODIUM_LIB_DIR"
 
           # 3) compilar
           cargo build --release --target i686-pc-windows-msvc 2>&1 | Tee-Object -FilePath build.log
-          if ($LASTEXITCODE -ne 0) { Get-Content build.log -Tail 120; throw "falhou a compilacao" }
+          if ($LASTEXITCODE -ne 0) {
+            Get-Content build.log -Tail 120
+            # o que o crate pediu ao linker (o cargo grava a saida de cada build script)
+            Get-ChildItem "target\i686-pc-windows-msvc\release\build" -Directory -ErrorAction SilentlyContinue |
+              Where-Object { $_.Name -like "*sodium*" } |
+              ForEach-Object { $o = Join-Path $_.FullName "output"; if (Test-Path $o) { "--- $($_.Name) ---"; Get-Content $o } } |
+              Tee-Object -FilePath sodium.log
+            throw "falhou a compilacao"
+          }
 
       - name: Conferir o binario (tem que ser 32 bits e com a nossa marca)
         shell: pwsh
