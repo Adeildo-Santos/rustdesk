@@ -30,6 +30,21 @@ jobs:
           toolchain: 1.58.1
           targets: i686-pc-windows-msvc
 
+      # O cargo de 2022 usa a biblioteca interna de git, que engasga ao buscar
+      # dependencias de repositorio (dava "object not found" na confy, mesmo com o
+      # commit existindo). Mandando usar o git de linha de comando, a busca funciona.
+      - name: Preparar o cargo
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:USERPROFILE ".cargo"
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          @"
+          [net]
+          git-fetch-with-cli = true
+          retry = 5
+          "@ | Set-Content -Encoding ascii (Join-Path $dir "config.toml")
+          Get-Content (Join-Path $dir "config.toml")
+
       - name: Biblioteca do sciter (32 bits)
         shell: pwsh
         run: |
