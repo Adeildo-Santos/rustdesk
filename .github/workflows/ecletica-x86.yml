@@ -33,8 +33,15 @@ jobs:
       - name: Biblioteca do sciter (32 bits)
         shell: pwsh
         run: |
-          Invoke-WebRequest -Uri "https://raw.githubusercontent.com/c-smile/sciter-sdk/master/bin.win/x86/sciter.dll" -OutFile sciter.dll
-          (Get-Item sciter.dll).Length
+          # Endereco fixado num commit de 2022 (epoca da arvore): na pasta de hoje o
+          # arquivo mudou de nome (x86 -> x32) e o endereco antigo dava 404.
+          $u = "https://raw.githubusercontent.com/c-smile/sciter-sdk/9f1724a45f5a/bin.win/x32/sciter.dll"
+          Invoke-WebRequest -Uri $u -OutFile sciter.dll
+          $b = [IO.File]::ReadAllBytes("sciter.dll")
+          $pe = [BitConverter]::ToInt32($b, 0x3c)
+          $machine = [BitConverter]::ToUInt16($b, $pe + 4)
+          "sciter.dll: $($b.Length) bytes · machine=0x{0:x}" -f $machine
+          if ($machine -ne 0x14c) { throw "a sciter.dll baixada nao e 32 bits" }
 
       - name: Compilar
         shell: pwsh
