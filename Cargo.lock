@@ -465,11 +465,11 @@ dependencies = [
 
 [[package]]
 name = "confy"
-version = "0.4.1"
-source = "git+https://github.com/open-trade/confy#27fa12941291b44ccd856aef4a5452c1eb646047"
+version = "0.4.0-2"
 dependencies = [
- "directories",
+ "directories-next",
  "serde 1.0.133",
+ "thiserror",
  "toml",
 ]
 
@@ -536,7 +536,6 @@ dependencies = [
 [[package]]
 name = "cpal"
 version = "0.13.4"
-source = "git+https://github.com/open-trade/cpal#3a30569687271c2d5d67279c4883d63f4003d34c"
 dependencies = [
  "alsa",
  "core-foundation-sys",
@@ -828,16 +827,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "directories"
-version = "2.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "551a778172a450d7fc12e629ca3b0428d00f6afa9a43da1b630d54604e97371c"
-dependencies = [
- "cfg-if 0.1.10",
- "dirs-sys",
-]
-
-[[package]]
 name = "directories-next"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -855,17 +844,6 @@ checksum = "b98cf8ebf19c3d1b223e151f99a4f9f0690dca41414773390fc824184ac833e1"
 dependencies = [
  "cfg-if 1.0.0",
  "dirs-sys-next",
-]
-
-[[package]]
-name = "dirs-sys"
-version = "0.3.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "03d86534ed367a67548dc68113a0f5db55432fdfbb6e6f9d77704397d95d5780"
-dependencies = [
- "libc",
- "redox_users",
- "winapi 0.3.9",
 ]
 
 [[package]]
@@ -1748,7 +1726,6 @@ checksum = "830d08ce1d1d941e6b30645f1a0eb5643013d835ce3779a5fc208261dbe10f55"
 [[package]]
 name = "libappindicator"
 version = "0.6.1"
-source = "git+https://github.com/liyue201/libappindicator-rs#3763cfd629dd90050af1feafa643cbfca0bf487e"
 dependencies = [
  "glib",
  "gtk",
@@ -1760,7 +1737,6 @@ dependencies = [
 [[package]]
 name = "libappindicator-sys"
 version = "0.6.1"
-source = "git+https://github.com/liyue201/libappindicator-rs#3763cfd629dd90050af1feafa643cbfca0bf487e"
 dependencies = [
  "gtk-sys",
  "pkg-config",
@@ -1909,7 +1885,6 @@ dependencies = [
 [[package]]
 name = "magnum-opus"
 version = "0.4.0"
-source = "git+https://github.com/open-trade/magnum-opus#3c3d0b86ae95c84930bebffe4bcb03b3bd83342b"
 dependencies = [
  "bindgen 0.59.2",
  "target_build_utils",
@@ -2370,7 +2345,6 @@ dependencies = [
 [[package]]
 name = "parity-tokio-ipc"
 version = "0.7.3"
-source = "git+https://github.com/open-trade/parity-tokio-ipc#52515618bd30ea8101bf46f6c7835e88cec9187f"
 dependencies = [
  "futures",
  "libc",
@@ -2645,7 +2619,6 @@ dependencies = [
 [[package]]
 name = "psutil"
 version = "3.2.1"
-source = "git+https://github.com/open-trade/rust-psutil#22b2e1bb4e29433a6ddb0c1bb259fe01e894c94f"
 dependencies = [
  "cfg-if 1.0.0",
  "darwin-libproc",
@@ -3026,7 +2999,6 @@ dependencies = [
 [[package]]
 name = "rust-pulsectl"
 version = "0.2.11"
-source = "git+https://github.com/open-trade/pulsectl#f8ed9c538d48e486ee2cc5678aa7aee26b377646"
 dependencies = [
  "libpulse-binding",
 ]
@@ -3188,7 +3160,6 @@ dependencies = [
 [[package]]
 name = "sciter-rs"
 version = "0.5.57"
-source = "git+https://github.com/open-trade/rust-sciter?branch=dyn#4cd10f985e76d64fbf3438ffe7532489936f489a"
 dependencies = [
  "lazy_static",
  "libc",
@@ -3510,7 +3481,6 @@ dependencies = [
 [[package]]
 name = "systray"
 version = "0.4.1"
-source = "git+https://github.com/liyue201/systray-rs#84cca4b4171661bc6c4d1ba5aaa2320ff8e085aa"
 dependencies = [
  "glib",
  "gtk",
@@ -3668,7 +3638,6 @@ dependencies = [
 [[package]]
 name = "tokio-socks"
 version = "0.5.1"
-source = "git+https://github.com/fufesou/tokio-socks#63e27388e4d569316945c1c24353010d86f342a6"
 dependencies = [
  "bytes",
  "either",
