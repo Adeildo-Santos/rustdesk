@@ -62,6 +62,17 @@ jobs:
           path: C:\vcpkg\installed
           key: vcpkg-x86-windows-static-v1
 
+      # O bindgen 0.59 (2021) usa o libclang da maquina; com o clang novo do runner
+      # ele morre em "LexError" ao gerar as ligacoes do libvpx. Pina o LLVM da epoca.
+      - name: LLVM da epoca (bindgen de 2022 com clang novo quebra)
+        shell: pwsh
+        run: |
+          choco install llvm --version=12.0.1 --allow-downgrade --no-progress -y 2>&1 | Out-String | Write-Host
+          $p = "C:\Program Files\LLVM\bin"
+          if (-not (Test-Path "$p\libclang.dll")) { throw "LLVM 12 nao ficou em $p" }
+          "LIBCLANG_PATH=$p" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding ascii
+          Write-Host "libclang: $p\libclang.dll"
+
       - name: Biblioteca do sciter (32 bits)
         shell: pwsh
         run: |
