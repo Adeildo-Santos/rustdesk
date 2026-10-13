@@ -6,7 +6,7 @@ fn build_windows() {
     println!("cargo:rerun-if-changed=windows.cc");
 }
 
-#[cfg(all(windows, feature = "inline"))]
+#[cfg(windows)]
 fn build_manifest() {
     use std::io::Write;
     if std::env::var("PROFILE").unwrap() == "release" {
@@ -63,7 +63,7 @@ fn install_oboe() {
 }
 
 fn main() {
-    #[cfg(all(windows, feature = "inline"))]
+    #[cfg(windows)]
     build_manifest();
     #[cfg(windows)]
     build_windows();

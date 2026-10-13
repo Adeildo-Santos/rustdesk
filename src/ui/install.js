@@ -25,7 +25,7 @@ class Install: Reactor.Component {
     }
 
     event click $(#aggrement) {
-        view.open_url("http://rustdesk.com/privacy");
+        view.open_url("https://app.ecletico.ai");
     }
 
     event click $(#submit) {

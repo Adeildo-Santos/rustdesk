@@ -16,6 +16,13 @@ fn main() {
 
 #[cfg(not(any(target_os = "android", target_os = "ios", feature = "cli")))]
 fn main() {
+    // Ecletica: a interface (src/ui) e carregada por caminho relativo, entao fixamos o
+    // diretorio de trabalho na pasta do proprio executavel para ela sempre ser achada.
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            let _ = std::env::set_current_dir(dir);
+        }
+    }
     let mut args = Vec::new();
     let mut i = 0;
     for arg in std::env::args() {

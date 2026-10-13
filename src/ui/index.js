@@ -265,8 +265,8 @@ class MyIdMenu extends Element {
             let name = handler.xcall("get_app_name");
             msgbox("custom-nocancel-nook-hasclose", "About " + name, "<div style='line-height: 2em'> \
                 <div>Version: " + handler.xcall("get_version") + " \
-                <div class='link custom-event' url='http://rustdesk.com/privacy'>Privacy Statement</div> \
-                <div class='link custom-event' url='http://rustdesk.com'>Website</div> \
+                <div class='link custom-event' url='https://app.ecletico.ai'>Privacy Statement</div> \
+                <div class='link custom-event' url='https://app.ecletico.ai'>Website</div> \
                 <div style='background: #2c8cff; color: white; padding: 1em; margin-top: 1em;'>Copyright &copy; 2020 CarrieZ Studio \
                 <br /> Author: Carrie \
                 <p style='font-weight: bold'>Made with heart in this chaotic world!</p>\
@@ -454,10 +454,10 @@ class UpdateMe extends Element {
     }
 
     ["on click at #install-me"]() {
-        handler.xcall("open_url","https://rustdesk.com");
+        handler.xcall("open_url","https://app.ecletico.ai");
         return;
         if (!is_win) {
-            handler.xcall("open_url","https://rustdesk.com");
+            handler.xcall("open_url","https://app.ecletico.ai");
             return;
         }
         let url = software_update_url + '.' + handler.xcall("get_software_ext");
