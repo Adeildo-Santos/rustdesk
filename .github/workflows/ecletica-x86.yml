@@ -12,14 +12,17 @@ on:
 jobs:
   build-x86:
     name: Cliente 32 bits (i686-pc-windows-msvc)
-    runs-on: windows-2019
+    # windows-2019 esta sendo retirada pelo GitHub: pedir essa imagem em repositorio
+    # publico deixa a execucao parada na fila para sempre. A 2022 tem o mesmo LLVM,
+    # o mesmo MSVC e sobe na hora.
+    runs-on: windows-2022
     env:
       LIBCLANG_PATH: C:\Program Files\LLVM\bin
     steps:
       - name: Baixar o codigo
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0      # a versao vem do git describe
+          fetch-depth: 1      # a versao sai do Cargo.toml (gen_version), nao do git
 
       - name: Rust 1.58.1 (epoca da arvore) + alvo 32 bits
         uses: dtolnay/rust-toolchain@master

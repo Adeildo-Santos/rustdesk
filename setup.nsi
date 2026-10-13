@@ -15,7 +15,7 @@
 !define PRODUCT_NAME "Ecletica Connect"
 !define PRODUCT_DESCRIPTION "Instalador do Ecletica Connect (32 bits)"
 !define COPYRIGHT "Copyright © Ecletica"
-!define VERSION "1.1.8"
+!define VERSION "1.5.0"
 
 VIProductVersion "${VERSION}.0"
 VIAddVersionKey "ProductName" "${PRODUCT_NAME}"
