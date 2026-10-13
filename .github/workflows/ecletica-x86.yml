@@ -60,6 +60,11 @@ jobs:
 
       - name: Compilar
         shell: pwsh
+        env:
+          # o cargo de 2022 usa a biblioteca interna de git e nao acha a confy;
+          # com esta variavel ele chama o git do sistema, que baixa sem problema.
+          CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+          CARGO_NET_RETRY: "5"
         run: |
           cargo build --release --target i686-pc-windows-msvc 2>&1 | Tee-Object -FilePath build.log
           if ($LASTEXITCODE -ne 0) { Get-Content build.log -Tail 120; throw "falhou a compilacao" }
