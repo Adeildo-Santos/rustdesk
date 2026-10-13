@@ -115,3 +115,35 @@ osx_minimum_system_version = "10.14"
 #codegen-units = 1
 #panic = 'abort'
 #opt-level = 'z' # only have smaller size after strip
+
+# --- dependencias fixadas trazidas para dentro do projeto (build sem rede) ---
+
+[patch."https://github.com/fufesou/tokio-socks"]
+tokio-socks = { path = "vendor-git/tokio-socks" }
+
+[patch."https://github.com/liyue201/libappindicator-rs"]
+libappindicator = { path = "vendor-git/libappindicator-rs" }
+
+[patch."https://github.com/liyue201/systray-rs"]
+systray = { path = "vendor-git/systray-rs" }
+
+[patch."https://github.com/open-trade/cpal"]
+cpal = { path = "vendor-git/cpal" }
+
+[patch."https://github.com/open-trade/magnum-opus"]
+magnum-opus = { path = "vendor-git/magnum-opus" }
+
+[patch."https://github.com/open-trade/parity-tokio-ipc"]
+parity-tokio-ipc = { path = "vendor-git/parity-tokio-ipc" }
+
+[patch."https://github.com/open-trade/pulsectl"]
+rust-pulsectl = { path = "vendor-git/pulsectl" }
+
+[patch."https://github.com/open-trade/rust-psutil"]
+psutil = { path = "vendor-git/rust-psutil" }
+
+[patch."https://github.com/open-trade/rust-sciter"]
+sciter-rs = { path = "vendor-git/rust-sciter" }
+
+[patch."https://github.com/open-trade/confy"]
+confy = { path = "vendor-git/confy" }
