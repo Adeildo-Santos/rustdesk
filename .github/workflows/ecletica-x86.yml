@@ -85,3 +85,15 @@ jobs:
             icon.ico
             Ecletica-Connect-32bits-Setup.exe
             build.log
+
+      # se algo falhar, o log do cargo sobe como arquivo: e' por ele que se descobre
+      # o motivo sem precisar abrir a tela do GitHub.
+      - name: Publicar o log (quando falha)
+        if: failure() || cancelled()
+        uses: actions/upload-artifact@v4
+        with:
+          name: log-do-build-32bits
+          if-no-files-found: warn
+          path: |
+            build.log
+            *.log
