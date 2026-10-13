@@ -86,6 +86,24 @@ jobs:
           "sciter.dll: $($b.Length) bytes · machine=0x{0:x}" -f $machine
           if ($machine -ne 0x14c) { throw "a sciter.dll baixada nao e 32 bits" }
 
+      # O crate da libsodium (0.2.7) escolhe a biblioteca pre-construida pela arquitetura da
+      # MAQUINA (x64) em vez da do ALVO (32 bits). O linker entao nao acha os simbolos do
+      # sodium e a rodada morre com LNK2019/LNK2000. Dentro do proprio crate existe a pasta
+      # Win32 (32 bits) — basta apontar SODIUM_LIB_DIR para ela.
+      # (NAO usar SODIUM_STATIC: o build.rs aborta dizendo que foi substituido por SODIUM_SHARED.)
+      - name: libsodium de 32 bits (o crate pega a de 64 sozinho)
+        shell: pwsh
+        run: |
+          $cat = Join-Path $env:USERPROFILE ".cargo\registry\src"
+          $alvo = "libsodium-sys-0.2.7\msvc\Win32\Release\v142\libsodium.lib"
+          $lib = Get-ChildItem $cat -Directory |
+            ForEach-Object { Join-Path $_.FullName $alvo } |
+            Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $lib) { throw "nao achei a libsodium de 32 bits (Win32) no crate" }
+          $dir = Split-Path $lib -Parent
+          "SODIUM_LIB_DIR=$dir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding ascii
+          Write-Host "libsodium de 32 bits: $dir\libsodium.lib"
+
       - name: Compilar
         shell: pwsh
         env:
