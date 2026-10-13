@@ -8,6 +8,10 @@
 !include nsDialogs.nsh
 !include MUI2.nsh
 !include LogicLib.nsh
+# A arvore de 2022 contava com o WinVer.nsh vindo junto do MUI2; no NSIS de hoje ele
+# nao vem, e sem ele o `${AtLeastWin7}` fica vazio: o `_If` recebe 2 parametros em vez
+# de 4 e o script aborta ("macro _If requires 4 parameter(s)"). Trazemos explicitamente.
+!include WinVer.nsh
 
 ####################################################################
 # File Info
