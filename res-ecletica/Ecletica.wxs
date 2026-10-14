@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Instalador unico Ecletica Connect (dual-arch).
+  - Pacote marcado 32 bits (roda em qualquer Windows).
+  - Em Windows 64 bits instala o cliente Flutter (payload\x64).
+  - Em Windows 32 bits instala o cliente sciter legado (payload\x86).
+  A config de rede (servidor/relay/api/key) ja vem embutida nos dois binarios,
+  entao o MSI nao injeta .toml nem mexe em C:\Users, taskkill ou sc.
+  UpgradeCode igual ao do MSI de 64 bits atual, para atualizar por cima da base.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:fw="http://wixtoolset.org/schemas/v4/wxs/firewall">
+
+  <?define Product = "Ecletica Connect" ?>
+  <?define Manufacturer = "Eclética" ?>
+  <?define UpgradeCode = "D3DC41E3-3C37-5D52-BB47-F6673705C01B" ?>
+  <?ifndef Version ?><?define Version = "1.5.20" ?><?endif?>
+
+  <Package Name="$(var.Product)"
+           Manufacturer="$(var.Manufacturer)"
+           Version="$(var.Version)"
+           UpgradeCode="$(var.UpgradeCode)"
+           Language="1046"
+           Codepage="1252"
+           Scope="perMachine">
+
+    <SummaryInformation Keywords="Installer" Description="$(var.Product) - instalador (64 e 32 bits)" />
+    <Media Id="1" Cabinet="cab1.cab" EmbedCab="yes" CompressionLevel="high" />
+    <Icon Id="AppIcon" SourceFile="payload\x86\icon.ico" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon" />
+    <Property Id="ARPURLINFOABOUT" Value="https://app.ecletico.ai" />
+
+    <MajorUpgrade DowngradeErrorMessage="Uma versão mais recente do $(var.Product) já está instalada."
+                  Schedule="afterInstallInitialize"
+                  AllowSameVersionUpgrades="yes" />
+
+    <!-- Pasta de instalacao: forca o Program Files real no Windows 64 bits
+         (o pacote e 32 bits e cairia em Program Files (x86)). -->
+    <SetProperty Id="INSTALLFOLDER" Before="CostFinalize"
+                 Value="[%ProgramW6432]\$(var.Product)" Condition="VersionNT64" />
+    <SetProperty Id="INSTALLFOLDER" Before="CostFinalize"
+                 Value="[ProgramFilesFolder]$(var.Product)" Condition="NOT VersionNT64" />
+
+    <StandardDirectory Id="ProgramFilesFolder">
+      <Directory Id="INSTALLFOLDER" Name="$(var.Product)" />
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="AppMenuFolder" Name="$(var.Product)" />
+    </StandardDirectory>
+    <StandardDirectory Id="DesktopFolder" />
+
+    <!-- ===== 64 bits (cliente Flutter) ===== -->
+    <Feature Id="ClientX64" Title="$(var.Product) (64 bits)" Level="0" AllowAbsent="no">
+      <Level value="1" Condition="VersionNT64" />
+      <ComponentGroupRef Id="FilesX64" />
+      <ComponentRef Id="MainExeX64" />
+      <ComponentGroupRef Id="SharedShortcuts" />
+    </Feature>
+
+    <!-- ===== 32 bits (cliente sciter legado) ===== -->
+    <Feature Id="ClientX86" Title="$(var.Product) (32 bits)" Level="0" AllowAbsent="no">
+      <Level value="1" Condition="NOT VersionNT64" />
+      <ComponentGroupRef Id="FilesX86" />
+      <ComponentRef Id="MainExeX86" />
+      <ComponentGroupRef Id="SharedShortcuts" />
+    </Feature>
+  </Package>
+
+  <!-- Arquivos do cliente 64 bits (todos menos o exe principal, que tem o servico) -->
+  <Fragment>
+    <ComponentGroup Id="FilesX64" Directory="INSTALLFOLDER">
+      <Files Include="payload\x64\**" Exclude="payload\x64\Ecletica Connect.exe" />
+    </ComponentGroup>
+    <Component Id="MainExeX64" Directory="INSTALLFOLDER" Guid="*">
+      <File Id="ExeX64" Source="payload\x64\Ecletica Connect.exe" KeyPath="yes" />
+      <ServiceInstall Id="SvcX64" Name="$(var.Product)" DisplayName="$(var.Product) Service"
+                      Start="auto" Type="ownProcess" ErrorControl="normal"
+                      Arguments="--service" Account="LocalSystem" Vital="no" />
+      <ServiceControl Id="SvcCtrlX64" Name="$(var.Product)"
+                      Start="install" Stop="both" Remove="uninstall" Wait="no" />
+      <fw:FirewallException Id="FwX64" Name="$(var.Product)" Scope="any" IgnoreFailure="yes" />
+    </Component>
+  </Fragment>
+
+  <!-- Arquivos do cliente 32 bits (inclui a UI em src\ui, exe principal a parte) -->
+  <Fragment>
+    <ComponentGroup Id="FilesX86" Directory="INSTALLFOLDER">
+      <Files Include="payload\x86\**" Exclude="payload\x86\Ecletica Connect.exe" />
+    </ComponentGroup>
+    <Component Id="MainExeX86" Directory="INSTALLFOLDER" Guid="*">
+      <File Id="ExeX86" Source="payload\x86\Ecletica Connect.exe" KeyPath="yes" />
+      <ServiceInstall Id="SvcX86" Name="$(var.Product)" DisplayName="$(var.Product) Service"
+                      Start="auto" Type="ownProcess" ErrorControl="normal"
+                      Arguments="--service" Account="LocalSystem" Vital="no" />
+      <ServiceControl Id="SvcCtrlX86" Name="$(var.Product)"
+                      Start="install" Stop="both" Remove="uninstall" Wait="no" />
+      <fw:FirewallException Id="FwX86" Name="$(var.Product)" Scope="any" IgnoreFailure="yes" />
+    </Component>
+  </Fragment>
+
+  <!-- Atalhos (servem para as duas arquiteturas; o exe tem sempre o mesmo nome/pasta) -->
+  <Fragment>
+    <ComponentGroup Id="SharedShortcuts">
+      <Component Id="Shortcuts" Directory="AppMenuFolder" Guid="*">
+        <Shortcut Id="DesktopSc" Directory="DesktopFolder" Name="$(var.Product)"
+                  Target="[INSTALLFOLDER]Ecletica Connect.exe"
+                  WorkingDirectory="INSTALLFOLDER" Icon="AppIcon" />
+        <Shortcut Id="MenuSc" Name="$(var.Product)"
+                  Target="[INSTALLFOLDER]Ecletica Connect.exe"
+                  WorkingDirectory="INSTALLFOLDER" Icon="AppIcon" />
+        <RemoveFolder Id="RemoveAppMenuFolder" Directory="AppMenuFolder" On="uninstall" />
+        <RegistryValue Root="HKCU" Key="Software\Ecletica\Connect"
+                       Name="installed" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+</Wix>

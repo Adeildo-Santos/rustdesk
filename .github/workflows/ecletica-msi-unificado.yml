@@ -1,0 +1,113 @@
+name: Ecletica Connect - MSI unico (64 + 32 bits)
+
+# Monta UM unico Ecletica-Connect-Setup-Windows.msi (marcado 32 bits, roda em
+# qualquer Windows) que instala o cliente certo conforme a arquitetura:
+#   - 64 bits -> cliente Flutter (artefato rustdesk-unsigned-windows-x64)
+#   - 32 bits -> cliente sciter legado (artefato Ecletica-Connect-32bits)
+# A config ja vem embutida nos binarios; o MSI nao injeta .toml.
+#
+# Pre-requisito: ter rodado antes, com sucesso, os dois builds de cliente, para
+# os artefatos existirem. Este workflow so empacota.
+
+on:
+  workflow_dispatch:
+    inputs:
+      versao:
+        description: "Versao do pacote (campos do MSI)"
+        default: "1.5.20"
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  msi:
+    name: Empacotar MSI unico
+    runs-on: windows-2022
+    env:
+      GH_TOKEN: ${{ github.token }}
+      V: ${{ inputs.versao }}
+    steps:
+      - name: Baixar o codigo (WiX + src/ui do cliente 32 bits)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Baixar artefato do cliente 32 bits (sciter, branch ecletica-x86-msi)
+        shell: bash
+        run: |
+          set -e
+          # workflow "Ecletica Connect 32 bits" = 383572376
+          RID=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/383572376/runs?status=success&branch=ecletica-x86-msi&per_page=1" \
+                  --jq '.workflow_runs[0].id')
+          [ -n "$RID" ] && [ "$RID" != "null" ] || { echo "nenhuma build de 32 bits com sucesso na branch"; exit 1; }
+          echo "run 32 bits: $RID"
+          gh run download "$RID" -R "$GITHUB_REPOSITORY" -n Ecletica-Connect-32bits -D art-x86
+
+      - name: Baixar artefato do cliente 64 bits (Flutter, branch ecletica)
+        shell: bash
+        run: |
+          set -e
+          # workflow "Ecletica - build do cliente Windows" = 377845673
+          RID=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/377845673/runs?status=success&branch=ecletica&per_page=30" \
+                  --jq 'first(.workflow_runs[].id)')
+          # procura a run mais recente que realmente tem o artefato windows x86_64
+          FOUND=""
+          for r in $(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/377845673/runs?status=success&branch=ecletica&per_page=30" --jq '.workflow_runs[].id'); do
+            if gh api "repos/$GITHUB_REPOSITORY/actions/runs/$r/artifacts" --jq '.artifacts[].name' | grep -qx "rustdesk-unsigned-windows-x86_64"; then
+              FOUND="$r"; break
+            fi
+          done
+          [ -n "$FOUND" ] || { echo "nenhuma build Flutter com o artefato windows x86_64"; exit 1; }
+          echo "run 64 bits: $FOUND"
+          gh run download "$FOUND" -R "$GITHUB_REPOSITORY" -n rustdesk-unsigned-windows-x86_64 -D art-x64
+
+      - name: Montar os payloads
+        shell: bash
+        run: |
+          set -e
+          mkdir -p res-ecletica/payload/x64 res-ecletica/payload/x86
+          # 64 bits: a arvore inteira do Flutter; o exe principal vira "Ecletica Connect.exe"
+          cp -a art-x64/. res-ecletica/payload/x64/
+          if [ -f "res-ecletica/payload/x64/rustdesk.exe" ]; then
+            mv "res-ecletica/payload/x64/rustdesk.exe" "res-ecletica/payload/x64/Ecletica Connect.exe"
+          fi
+          [ -f "res-ecletica/payload/x64/Ecletica Connect.exe" ] || { echo "faltou o exe de 64 bits"; ls -la res-ecletica/payload/x64 | head; exit 1; }
+          # 32 bits: exe + sciter.dll + icon + a UI (src/ui, carregada do disco)
+          cp -a "art-x86/Ecletica Connect.exe" res-ecletica/payload/x86/
+          cp -a art-x86/sciter.dll            res-ecletica/payload/x86/
+          cp -a art-x86/icon.ico              res-ecletica/payload/x86/
+          mkdir -p "res-ecletica/payload/x86/src/ui"
+          cp -a src/ui/. "res-ecletica/payload/x86/src/ui/"
+          # a UI nao precisa dos .rs
+          find "res-ecletica/payload/x86/src/ui" -name '*.rs' -delete
+          echo "x64: $(find res-ecletica/payload/x64 -type f | wc -l) arquivos | x86: $(find res-ecletica/payload/x86 -type f | wc -l) arquivos"
+
+      - name: Instalar o WiX v4 + extensoes
+        shell: bash
+        run: |
+          set -e
+          dotnet tool install --global wix --version 4.0.5
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          wix extension add -g WixToolset.Firewall.wixext/4.0.5
+
+      - name: Construir o MSI
+        shell: bash
+        run: |
+          set -e
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          cd res-ecletica
+          wix build Ecletica.wxs \
+            -arch x86 \
+            -ext WixToolset.Firewall.wixext \
+            -d Version="$V" \
+            -o "Ecletica-Connect-Setup-Windows.msi"
+          ls -la "Ecletica-Connect-Setup-Windows.msi"
+          sha256sum "Ecletica-Connect-Setup-Windows.msi"
+
+      - name: Publicar o MSI
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ecletica-Connect-Setup-Windows-msi
+          if-no-files-found: error
+          path: res-ecletica/Ecletica-Connect-Setup-Windows.msi
