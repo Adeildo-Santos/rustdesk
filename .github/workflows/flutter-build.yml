@@ -9,6 +9,9 @@ on:
       upload-tag:
         type: string
         default: "nightly"
+      somente:
+        type: string
+        default: "todos"
 
 # NOTE: F-Droid builder script 'flutter/build_fdroid.sh' reads environment
 # variables from this workflow!
@@ -45,16 +48,15 @@ env:
   VCPKG_COMMIT_ID: "9e593bb18ea69cc5095e012465dcd675a822ed0d"
   VCPKG_CMAKE_VERSION: "4.3.0"
   ARMV7_VCPKG_COMMIT_ID: "6f29f12e82a8293156836ad81cc9bf5af41fe836" # 2025.01.13, got "/opt/artifacts/vcpkg/vcpkg: No such file or directory" with latest version
-  VERSION: "1.5.0"
+  VERSION: "1.5.20"
   NDK_VERSION: "r28c"
   #signing keys env variable checks
-  ANDROID_SIGNING_KEY: "${{ secrets.ANDROID_SIGNING_KEY }}"
-  MACOS_P12_BASE64: "${{ secrets.MACOS_P12_BASE64 }}"
   UPLOAD_ARTIFACT: "${{ inputs.upload-artifact }}"
-  SIGN_BASE_URL: "${{ secrets.SIGN_BASE_URL }}-2"
+  SIGN_BASE_URL: "-2"
 
 jobs:
   generate-sbom:
+    if: false
     runs-on: ubuntu-latest
 
     permissions:
@@ -107,6 +109,7 @@ jobs:
       target_version: Windows10
 
   build-for-windows-flutter:
+    if: ${{ inputs.somente == 'windows' || inputs.somente == 'todos' }}
     name: ${{ matrix.job.target }}
     needs: [build-RustDeskTempTopMostWindow, generate-bridge]
     runs-on: ${{ matrix.job.os }}
@@ -210,12 +213,34 @@ jobs:
       # windows-x64-release.zip is built for the 3.24-era x64 engine (matches FLUTTER_VERSION).
       - name: Replace engine with rustdesk custom flutter engine
         if: ${{ matrix.job.arch == 'x86_64' }}
+        # Nao confiar no PATH: se a exportacao do subosito falhar, `flutter` some do PATH e o job
+        # morre aqui (aconteceu na rodada 39, em 10/10/2026). Resolve o SDK pelo proprio passo do
+        # Flutter, poe no PATH deste e dos proximos passos, e falha alto se o binario nao existir.
         run: |
-          flutter doctor -v
-          flutter precache --windows
+          $flutterRoot = "${{ steps.flutter.outputs['CACHE-PATH'] }}"
+          if (-not $flutterRoot) { $flutterRoot = "C:/hostedtoolcache/windows/flutter/stable-${{ env.FLUTTER_VERSION }}-x64" }
+          $flutterBin = Join-Path $flutterRoot "bin"
+          if (-not (Test-Path (Join-Path $flutterBin "flutter.bat"))) {
+            $flutterRoot = "C:/hostedtoolcache/windows/flutter/stable-${{ env.FLUTTER_VERSION }}-x64"
+            $flutterBin = Join-Path $flutterRoot "bin"
+          }
+          if (-not (Test-Path (Join-Path $flutterBin "flutter.bat"))) {
+            Write-Error "Nao achei o flutter em $flutterRoot (FLUTTER_ROOT=$env:FLUTTER_ROOT)"
+            exit 1
+          }
+          Write-Host "Flutter root: $flutterRoot"
+          $env:PATH = "$flutterBin;$env:PATH"
+          $flutterBin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          & (Join-Path $flutterBin "flutter.bat") doctor -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & (Join-Path $flutterBin "flutter.bat") precache --windows
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Invoke-WebRequest -Uri https://github.com/rustdesk/engine/releases/download/main/windows-x64-release.zip -OutFile windows-x64-release.zip
           Expand-Archive -Path windows-x64-release.zip -DestinationPath windows-x64-release
-          mv -Force windows-x64-release/*  C:/hostedtoolcache/windows/flutter/stable-${{ env.FLUTTER_VERSION }}-x64/bin/cache/artifacts/engine/windows-x64-release/
+          $engineDir = Join-Path $flutterRoot "bin/cache/artifacts/engine/windows-x64-release"
+          if (-not (Test-Path $engineDir)) { New-Item -ItemType Directory -Force -Path $engineDir | Out-Null }
+          mv -Force windows-x64-release/* $engineDir/
+          Write-Host "Engine customizada instalada em $engineDir"
 
       - name: Patch flutter
         # x64 stays on Flutter 3.24.5, which needs the dropdown filter patch.
@@ -223,8 +248,11 @@ jobs:
         if: ${{ matrix.job.arch == 'x86_64' }}
         shell: bash
         run: |
-          cp .github/patches/flutter_3.24.4_dropdown_menu_enableFilter.diff $(dirname $(dirname $(which flutter)))
-          cd $(dirname $(dirname $(which flutter)))
+          FL="${{ steps.flutter.outputs['CACHE-PATH'] }}"
+          if [ ! -x "$FL/bin/flutter" ]; then FL="C:/hostedtoolcache/windows/flutter/stable-${{ env.FLUTTER_VERSION }}-x64"; fi
+          export PATH="$FL/bin:$PATH"
+          cp .github/patches/flutter_3.24.4_dropdown_menu_enableFilter.diff "$FL"
+          cd "$FL"
           if [[ "3.24.5" == ${{env.FLUTTER_VERSION}} ]]; then
             git apply flutter_3.24.4_dropdown_menu_enableFilter.diff
           fi
@@ -370,7 +398,8 @@ jobs:
           python3 ./generate.py -f ../../rustdesk/ -o . -e ../../rustdesk/rustdesk.exe
           popd
           mkdir -p ./SignOutput
-          mv ./target/release/rustdesk-portable-packer.exe ./SignOutput/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.exe
+          PLAT=$([ "${{ matrix.job.arch }}" = "aarch64" ] && echo arm64 || echo x64)
+          mv ./target/release/rustdesk-portable-packer.exe "./SignOutput/Ecletica-Quicksuporte-Windows-$PLAT.exe"
 
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # v2
@@ -388,13 +417,100 @@ jobs:
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
           pushd ./res/msi
-          python preprocess.py --arp -d ../../rustdesk
+          # O dist sai do build como rustdesk.exe; o MSI instala o arquivo com o nome do
+          # produto (File Name="$(var.Product).exe", fonte = FileSource\Name). Sem este
+          # rename o preprocess nao acha o exe e a rodada morre aqui.
+          if (Test-Path '../../rustdesk/rustdesk.exe') { Move-Item -Force '../../rustdesk/rustdesk.exe' '../../rustdesk/Ecletica Connect.exe' }
+          python preprocess.py --arp --app-name "Ecletica Connect" --manufacturer "Eclética" --data-dir "Ecletica Acesso Remoto" -d ../../rustdesk
           nuget restore msi.sln
           $msiPlatform = if ('${{ matrix.job.arch }}' -eq 'aarch64') { 'ARM64' } else { 'x64' }
           msbuild msi.sln -p:Configuration=Release -p:Platform=$msiPlatform /p:TargetVersion=Windows10
           $msi = Get-ChildItem ./Package/bin/*/Release/en-us/Package.msi | Select-Object -First 1
-          mv $msi.FullName ../../SignOutput/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.msi
-          sha256sum ../../SignOutput/rustdesk-*.msi
+          $plat = if ('${{ matrix.job.arch }}' -eq 'aarch64') { 'arm64' } else { 'x64' }
+          mv $msi.FullName ../../SignOutput/Ecletica-Connect-Windows-$plat.msi
+          sha256sum ../../SignOutput/Ecletica-*.msi
+
+      - name: Build installer exe (NSIS)
+        # O instalador .exe e so uma casca: extrai o msi e chama o instalador do Windows
+        # (msiexec /passive), com o icone da marca e elevacao propria. Entra no Release
+        # pelo mesmo glob dos outros (.SignOutput/Ecletica-*.exe), ao lado do quicksuporte.
+        if: env.UPLOAD_ARTIFACT == 'true'
+        shell: bash
+        run: |
+          set -e
+          PLAT="${{ matrix.job.arch == 'aarch64' && 'arm64' || 'x64' }}"
+          MSI="Ecletica-Connect-Windows-$PLAT.msi"
+          MAKENSIS=$(ls "/c/Program Files (x86)/NSIS/makensis.exe" 2>/dev/null || ls "/c/Program Files/NSIS/makensis.exe" 2>/dev/null || true)
+          if [ -z "$MAKENSIS" ]; then
+            choco install nsis -y --no-progress
+            MAKENSIS="/c/Program Files (x86)/NSIS/makensis.exe"
+          fi
+          mkdir -p ./instalador-exe && cd ./instalador-exe
+          cp "../SignOutput/$MSI" .
+          cp ../flutter/windows/runner/resources/app_icon.ico .
+          cat > instalador.nsi <<'NSI'
+          Unicode true
+          !define PRODUTO "Eclética Connect"
+          Name "${PRODUTO}"
+          OutFile "${SAIDA}"
+          Icon "app_icon.ico"
+          UninstallIcon "app_icon.ico"
+          RequestExecutionLevel admin
+          SilentInstall silent
+          SetCompressor /SOLID lzma
+          XPStyle on
+          VIProductVersion "${{ env.VERSION }}.0"
+          VIAddVersionKey "ProductName" "${PRODUTO}"
+          VIAddVersionKey "FileDescription" "Instalador do ${PRODUTO}"
+          VIAddVersionKey "FileVersion" "${{ env.VERSION }}.0"
+          VIAddVersionKey "CompanyName" "Eclética"
+          VIAddVersionKey "LegalCopyright" "Eclética"
+          !include "LogicLib.nsh"
+          Section "Instalar"
+            SetOutPath "$PLUGINSDIR"
+            File "${PACOTE}"
+            ExecWait '"$SYSDIR\msiexec.exe" /i "$PLUGINSDIR\${PACOTE}" /passive' $0
+            Delete "$PLUGINSDIR\${PACOTE}"
+            ${If} $0 == 3010
+              MessageBox MB_OK "${PRODUTO} foi instalado. O Windows pede para reiniciar, para concluir."
+            ${ElseIf} $0 == 1602
+              ; cancelado pelo usuario: nao avisar nada
+            ${ElseIf} $0 != 0
+              MessageBox MB_ICONSTOP "A instalacao terminou com o codigo $0. Anote este numero e avise o suporte."
+            ${EndIf}
+          SectionEnd
+          NSI
+          "$MAKENSIS" -V2 -DPACOTE="$MSI" -DSAIDA="Ecletica-Connect-Windows-$PLAT.exe" instalador.nsi
+          cp "Ecletica-Connect-Windows-$PLAT.exe" ../SignOutput/
+          sha256sum "../SignOutput/Ecletica-Connect-Windows-$PLAT.exe"
+
+      - name: Prepara nomes do atualizador e a versao
+        # O proprio cliente (RustDesk) procura o arquivo com o nome
+        # rustdesk-<versao>-<arch>.<ext> numa release com o numero da versao.
+        # Publicamos as MESMAS builds com esse nome para a atualizacao automatica
+        # funcionar sem mexer no codigo de download do RustDesk.
+        if: env.UPLOAD_ARTIFACT == 'true'
+        shell: bash
+        run: |
+          set -e
+          ARCH="${{ matrix.job.arch == 'aarch64' && 'aarch64' || 'x86_64' }}"
+          cp "./SignOutput/Ecletica-Connect-Windows-${{ matrix.job.arch == 'aarch64' && 'arm64' || 'x64' }}.msi" \
+             "./SignOutput/rustdesk-${{ env.VERSION }}-$ARCH.msi"
+          cp "./SignOutput/Ecletica-Connect-Windows-${{ matrix.job.arch == 'aarch64' && 'arm64' || 'x64' }}.exe" \
+             "./SignOutput/rustdesk-${{ env.VERSION }}-$ARCH.exe"
+          echo "${{ env.VERSION }}" > ./SignOutput/VERSION.txt
+          ls -la "./SignOutput/rustdesk-${{ env.VERSION }}-$ARCH.msi" "./SignOutput/rustdesk-${{ env.VERSION }}-$ARCH.exe" ./SignOutput/VERSION.txt
+
+      - name: Publish versao para o atualizador
+        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
+        if: env.UPLOAD_ARTIFACT == 'true'
+        with:
+          prerelease: true
+          make_latest: false
+          tag_name: ${{ env.VERSION }}
+          files: |
+            ./SignOutput/rustdesk-${{ env.VERSION }}-*.msi
+            ./SignOutput/rustdesk-${{ env.VERSION }}-*.exe
 
       - name: Build pre-built MSI template
         # Two things this works around: preprocess.py rewrites res/msi in place, so the
@@ -418,7 +534,7 @@ jobs:
         run: |
           git checkout -- res/msi
           cp -r ./rustdesk ./rustdesk-msi-template
-          mv ./rustdesk-msi-template/rustdesk.exe ./rustdesk-msi-template/RDAPPNAM.exe
+          mv './rustdesk-msi-template/Ecletica Connect.exe' ./rustdesk-msi-template/RDAPPNAM.exe
           Set-Content -Path ./rustdesk-msi-template/custom.txt -Value 'placeholder' -NoNewline
           $assets = './rustdesk-msi-template/data/flutter_assets/assets'
           New-Item -ItemType Directory -Force -Path $assets | Out-Null
@@ -457,11 +573,28 @@ jobs:
           prerelease: true
           tag_name: ${{ env.TAG_NAME }}
           files: |
-            ./SignOutput/rustdesk-*.msi
-            ./SignOutput/rustdesk-*.exe
+            ./SignOutput/Ecletica-*.msi
+            ./SignOutput/Ecletica-*.exe
+            ./SignOutput/VERSION.txt
+
+      - name: Remove os nomes antigos do Release
+        # Depois que os arquivos com nome novo entraram, tiramos os antigos
+        # (rustdesk-<versao>*) para nao ficar arquivo repetido na lista.
+        if: env.UPLOAD_ARTIFACT == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ANTIGOS="$(gh release view "${{ env.TAG_NAME }}" --json assets -q '.assets[].name' \
+            | grep -E '^rustdesk-${{ env.VERSION }}.*\.(msi|exe|dmg)$' || true)"
+          [ -z "$ANTIGOS" ] && { echo "nada para remover"; exit 0; }
+          for n in $ANTIGOS; do
+            gh release delete-asset "${{ env.TAG_NAME }}" "$n" --yes && echo "removido: $n"
+          done
 
   # The fallback for the flutter version, we use Sciter for 32bit Windows.
   build-for-windows-sciter:
+    if: false
     name: ${{ matrix.job.target }} (${{ matrix.job.os }})
     runs-on: ${{ matrix.job.os }}
     # Temporarily disable this action due to additional test is needed.
@@ -622,7 +755,7 @@ jobs:
             ./SignOutput/rustdesk-*.exe
 
   build-rustdesk-ios:
-    if: ${{ inputs.upload-artifact }}
+    if: false
     name: build rustdesk ios ipa
     runs-on: ${{ matrix.job.os }}
     needs: [generate-bridge]
@@ -744,6 +877,7 @@ jobs:
 
 
   build-for-macOS:
+    if: ${{ inputs.somente == 'mac' || inputs.somente == 'todos' }}
     name: ${{ matrix.job.target }}
     runs-on: ${{ matrix.job.os }}
     needs: [generate-bridge]
@@ -780,7 +914,7 @@ jobs:
           submodules: recursive
 
       - name: Import the codesign cert
-        if: env.MACOS_P12_BASE64 != null
+        if: false
         uses: apple-actions/import-codesign-certs@253ddeeac23f2bdad1646faac5c8c2832e800071 # v1
         with:
           p12-file-base64: ${{ secrets.MACOS_P12_BASE64 }}
@@ -788,13 +922,13 @@ jobs:
           keychain: rustdesk
 
       - name: Check sign and import sign key
-        if: env.MACOS_P12_BASE64 != null
+        if: false
         run: |
           security default-keychain -s rustdesk.keychain
           security find-identity -v
 
       - name: Import notarize key
-        if: env.MACOS_P12_BASE64 != null
+        if: false
         uses: timheuer/base64-to-file@adaa40c0c581f276132199d4cf60afa07ce60eac # v1.2
         with:
           # https://gregoryszorc.com/docs/apple-codesign/stable/apple_codesign_rcodesign.html#notarizing-and-stapling
@@ -803,7 +937,7 @@ jobs:
           encodedString: ${{ secrets.MACOS_NOTARIZE_JSON }}
 
       - name: Install rcodesign tool
-        if: env.MACOS_P12_BASE64 != null
+        if: false
         shell: bash
         run: |
           pushd /tmp
@@ -919,13 +1053,26 @@ jobs:
           fi
           ./build.py --flutter --hwcodec --unix-file-copy-paste ${{ matrix.job.extra-build-args }}
 
+      - name: Reassinar o app ad-hoc (selo valido p/ Acessibilidade)
+        if: env.UPLOAD_ARTIFACT == 'true'
+        run: |
+          APP="./flutter/build/macos/Build/Products/Release/Ecletica Connect.app"
+          # build.py renomeia o executavel e adiciona o binario 'service' DEPOIS de o
+          # Xcode assinar, o que invalida o selo ad-hoc ("a sealed resource is missing
+          # or invalid"). Com o selo invalido + hardened runtime, o macOS nao honra a
+          # permissao de Acessibilidade e descarta os cliques sinteticos (ve a tela mas
+          # nao controla). Reassinar ad-hoc por ultimo regenera o CodeResources.
+          codesign --remove-signature "$APP" 2>/dev/null || true
+          codesign --force --deep --sign - "$APP"
+          codesign --verify --deep --strict "$APP" && echo "assinatura ad-hoc valida"
+
       - name: create unsigned dmg
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
           CREATE_DMG="$(command -v create-dmg)"
           CREATE_DMG="$(readlink -f "$CREATE_DMG")"
           sed -i -e 's/MAXIMUM_UNMOUNTING_ATTEMPTS=3/MAXIMUM_UNMOUNTING_ATTEMPTS=7/' "$CREATE_DMG"
-          create-dmg --icon "RustDesk.app" 200 190 --hide-extension "RustDesk.app" --window-size 800 400 --app-drop-link 600 185 rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.dmg ./flutter/build/macos/Build/Products/Release/RustDesk.app
+          create-dmg --icon "Ecletica Connect.app" 200 190 --hide-extension "Ecletica Connect.app" --window-size 800 400 --app-drop-link 600 185 rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.dmg "./flutter/build/macos/Build/Products/Release/Ecletica Connect.app"
 
       - name: Upload unsigned macOS app
         if: env.UPLOAD_ARTIFACT == 'true'
@@ -935,7 +1082,7 @@ jobs:
           path: rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.dmg # can not upload the directory directly or tar.gz, which destroy the link structure, causing the codesign failed
 
       - name: Codesign app and create signed dmg
-        if: env.MACOS_P12_BASE64 != null && env.UPLOAD_ARTIFACT == 'true'
+        if: false && env.UPLOAD_ARTIFACT == 'true'
         run: |
           # Patch create-dmg to give more attempts to unmount image
           CREATE_DMG="$(command -v create-dmg)"
@@ -948,10 +1095,10 @@ jobs:
           rm -rf *.dmg || true
           # the identity secret carries its own shell quoting, so expand it inline like the dmg codesign below
           bash ./.github/scripts/sign-macos-app.sh \
-            ./flutter/build/macos/Build/Products/Release/RustDesk.app \
+            "./flutter/build/macos/Build/Products/Release/Ecletica Connect.app" \
             ${{ secrets.MACOS_CODESIGN_IDENTITY }} \
             ./flutter/macos/Runner/Release.entitlements
-          create-dmg --icon "RustDesk.app" 200 190 --hide-extension "RustDesk.app" --window-size 800 400 --app-drop-link 600 185 rustdesk-${{ env.VERSION }}.dmg ./flutter/build/macos/Build/Products/Release/RustDesk.app
+          create-dmg --icon "Ecletica Connect.app" 200 190 --hide-extension "Ecletica Connect.app" --window-size 800 400 --app-drop-link 600 185 rustdesk-${{ env.VERSION }}.dmg "./flutter/build/macos/Build/Products/Release/Ecletica Connect.app"
           codesign --force --options runtime -s ${{ secrets.MACOS_CODESIGN_IDENTITY }} --deep --strict rustdesk-${{ env.VERSION }}.dmg -vvv
           # notarize the rustdesk-${{ env.VERSION }}.dmg
           rcodesign notary-submit --api-key-path ${{ github.workspace }}/rustdesk.json  --staple rustdesk-${{ env.VERSION }}.dmg
@@ -959,9 +1106,32 @@ jobs:
       - name: Rename rustdesk
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
-          for name in rustdesk*??.dmg; do
-              mv "$name" "${name%%.dmg}-${{ matrix.job.arch }}.dmg"
+          SUF=$([ "${{ matrix.job.arch }}" = "aarch64" ] && echo AppleSilicon || echo Intel)
+          for name in rustdesk*.dmg; do
+              [ -e "$name" ] || continue
+              mv "$name" "Ecletica-Connect-macOS-$SUF.dmg"
           done
+
+      - name: Copia nomes que o atualizador procura
+        # O cliente procura rustdesk-<versao>-<arch>.dmg numa release com o numero
+        # da versao; publicamos o mesmo dmg com esse nome.
+        if: env.UPLOAD_ARTIFACT == 'true'
+        run: |
+          for f in Ecletica-*.dmg; do
+            [ -e "$f" ] || continue
+            cp "$f" "rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.dmg"
+          done
+          ls -la rustdesk-${{ env.VERSION }}-*.dmg
+
+      - name: Publish versao para o atualizador
+        if: env.UPLOAD_ARTIFACT == 'true'
+        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
+        with:
+          prerelease: true
+          make_latest: false
+          tag_name: ${{ env.VERSION }}
+          files: |
+            rustdesk-${{ env.VERSION }}-*.dmg
 
       - name: Publish DMG package
         if: env.UPLOAD_ARTIFACT == 'true'
@@ -970,7 +1140,7 @@ jobs:
           prerelease: true
           tag_name: ${{ env.TAG_NAME }}
           files: |
-            rustdesk*-${{ matrix.job.arch }}.dmg
+            Ecletica-*.dmg
 
   publish_unsigned:
     needs:
@@ -978,7 +1148,7 @@ jobs:
       - build-for-windows-flutter
       - build-for-windows-sciter
     runs-on: ubuntu-latest
-    if: ${{ inputs.upload-artifact }}
+    if: ${{ inputs.upload-artifact && inputs.somente == 'todos' }}
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -1034,9 +1204,16 @@ jobs:
           files: rustdesk-${{ env.VERSION }}-unsigned.tar.gz
 
   build-rustdesk-android:
+    # Ecletica: liga só quando pedido de proposito (Actions -> Run workflow -> somente = android).
+    # Sem isso, o build normal continua sendo so Windows + macOS.
+    if: ${{ inputs.somente == 'android' }}
     needs: [generate-bridge]
     name: build rustdesk android apk ${{ matrix.job.target }}
     runs-on: ${{ matrix.job.os }}
+    # Ecletica: o passo de assinar testa env.ANDROID_SIGNING_KEY; sem isso aqui ele era pulado
+    # e o APK saia com a chave de depuracao.
+    env:
+      ANDROID_SIGNING_KEY: ${{ secrets.ANDROID_SIGNING_KEY }}
     strategy:
       fail-fast: false
       matrix:
@@ -1327,9 +1504,9 @@ jobs:
             signed-apk/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.apk
 
   build-rustdesk-android-universal:
+    if: false
     needs: [build-rustdesk-android]
     name: build rustdesk android universal apk
-    if: ${{ inputs.upload-artifact }}
     runs-on: ubuntu-24.04
     env:
       reltype: release
@@ -1512,6 +1689,7 @@ jobs:
             signed-apk/rustdesk-${{ env.VERSION }}-universal${{ env.suffix }}.apk
 
   build-rustdesk-linux:
+    if: false
     needs: [generate-bridge]
     name: build rustdesk linux ${{ matrix.job.target }}
     runs-on: ${{ matrix.job.on }}
@@ -1861,6 +2039,7 @@ jobs:
   # old for it. A separate job rather than a matrix entry of build-rustdesk-linux: appimage and
   # flatpak need that job, and a failure here must not skip them.
   build-rustdesk-linux-drm:
+    if: false
     needs: [generate-bridge]
     name: build rustdesk linux drm x86_64
     runs-on: ubuntu-22.04
@@ -2171,7 +2350,7 @@ jobs:
           path: ${{ env.DRM_DEB }}
 
   build-rustdesk-linux-sciter:
-    if: ${{ inputs.upload-artifact }}
+    if: false
     runs-on: ${{ matrix.job.on }}
     name: build-rustdesk-linux-sciter ${{ matrix.job.target }}
     strategy:
@@ -2413,10 +2592,10 @@ jobs:
           path: rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}-sciter.deb
 
   build-appimage:
+    if: false
     name: Build appimage ${{ matrix.job.target }}
     needs: [build-rustdesk-linux]
     runs-on: ubuntu-22.04
-    if: ${{ inputs.upload-artifact }}
     strategy:
       fail-fast: false
       matrix:
@@ -2466,12 +2645,12 @@ jobs:
             ./appimage/rustdesk-${{ env.VERSION }}-*.AppImage
 
   build-flatpak:
+    if: false
     name: Build flatpak ${{ matrix.job.target }}${{ matrix.job.suffix }}
     needs:
       - build-rustdesk-linux
       - build-rustdesk-linux-sciter
     runs-on: ${{ matrix.job.on }}
-    if: ${{ inputs.upload-artifact }}
     strategy:
       fail-fast: false
       matrix:
@@ -2551,7 +2730,7 @@ jobs:
             flatpak/rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}${{ matrix.job.suffix }}.flatpak
 
   build-rustdesk-web:
-    if: False
+    if: false
     name: build-rustdesk-web
     runs-on: ubuntu-22.04
     permissions:

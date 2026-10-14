@@ -2047,6 +2047,10 @@ pub fn session_send_mouse(session_id: SessionID, msg: String) {
                 _ => 0,
             } << 3;
         }
+        log::info!(
+            "[diag-input] session_send_mouse type={:?} buttons={:?} mask={} x={} y={}",
+            m.get("type"), m.get("buttons"), mask, x, y
+        );
         if let Some(session) = sessions::get_session_by_session_id(&session_id) {
             session.send_mouse(mask, x, y, alt, ctrl, shift, command);
         }
