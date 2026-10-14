@@ -51,50 +51,48 @@
 
     <!-- ===== 64 bits (cliente Flutter) ===== -->
     <Feature Id="ClientX64" Title="$(var.Product) (64 bits)" Level="0" AllowAbsent="no">
-      <Level value="1" Condition="VersionNT64" />
-      <ComponentGroupRef Id="FilesX64" />
+      <Level Level="1" Condition="VersionNT64" />
+      <Files Directory="INSTALLFOLDER" Include="payload\x64\**"
+             Exclude="payload\x64\Ecletica Connect.exe" />
       <ComponentRef Id="MainExeX64" />
       <ComponentGroupRef Id="SharedShortcuts" />
     </Feature>
 
     <!-- ===== 32 bits (cliente sciter legado) ===== -->
     <Feature Id="ClientX86" Title="$(var.Product) (32 bits)" Level="0" AllowAbsent="no">
-      <Level value="1" Condition="NOT VersionNT64" />
-      <ComponentGroupRef Id="FilesX86" />
+      <Level Level="1" Condition="NOT VersionNT64" />
+      <Files Directory="INSTALLFOLDER" Include="payload\x86\**"
+             Exclude="payload\x86\Ecletica Connect.exe" />
       <ComponentRef Id="MainExeX86" />
       <ComponentGroupRef Id="SharedShortcuts" />
     </Feature>
   </Package>
 
-  <!-- Arquivos do cliente 64 bits (todos menos o exe principal, que tem o servico) -->
+  <!-- exe principal 64 bits (com servico e firewall) -->
   <Fragment>
-    <ComponentGroup Id="FilesX64" Directory="INSTALLFOLDER">
-      <Files Include="payload\x64\**" Exclude="payload\x64\Ecletica Connect.exe" />
-    </ComponentGroup>
     <Component Id="MainExeX64" Directory="INSTALLFOLDER" Guid="*">
-      <File Id="ExeX64" Source="payload\x64\Ecletica Connect.exe" KeyPath="yes" />
+      <File Id="ExeX64" Source="payload\x64\Ecletica Connect.exe" KeyPath="yes">
+        <fw:FirewallException Id="FwX64" Name="$(var.Product)" Scope="any" IgnoreFailure="yes" />
+      </File>
       <ServiceInstall Id="SvcX64" Name="$(var.Product)" DisplayName="$(var.Product) Service"
                       Start="auto" Type="ownProcess" ErrorControl="normal"
                       Arguments="--service" Account="LocalSystem" Vital="no" />
       <ServiceControl Id="SvcCtrlX64" Name="$(var.Product)"
                       Start="install" Stop="both" Remove="uninstall" Wait="no" />
-      <fw:FirewallException Id="FwX64" Name="$(var.Product)" Scope="any" IgnoreFailure="yes" />
     </Component>
   </Fragment>
 
-  <!-- Arquivos do cliente 32 bits (inclui a UI em src\ui, exe principal a parte) -->
+  <!-- exe principal 32 bits (com servico e firewall) -->
   <Fragment>
-    <ComponentGroup Id="FilesX86" Directory="INSTALLFOLDER">
-      <Files Include="payload\x86\**" Exclude="payload\x86\Ecletica Connect.exe" />
-    </ComponentGroup>
     <Component Id="MainExeX86" Directory="INSTALLFOLDER" Guid="*">
-      <File Id="ExeX86" Source="payload\x86\Ecletica Connect.exe" KeyPath="yes" />
+      <File Id="ExeX86" Source="payload\x86\Ecletica Connect.exe" KeyPath="yes">
+        <fw:FirewallException Id="FwX86" Name="$(var.Product)" Scope="any" IgnoreFailure="yes" />
+      </File>
       <ServiceInstall Id="SvcX86" Name="$(var.Product)" DisplayName="$(var.Product) Service"
                       Start="auto" Type="ownProcess" ErrorControl="normal"
                       Arguments="--service" Account="LocalSystem" Vital="no" />
       <ServiceControl Id="SvcCtrlX86" Name="$(var.Product)"
                       Start="install" Stop="both" Remove="uninstall" Wait="no" />
-      <fw:FirewallException Id="FwX86" Name="$(var.Product)" Scope="any" IgnoreFailure="yes" />
     </Component>
   </Fragment>
 
