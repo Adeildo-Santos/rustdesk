@@ -134,18 +134,52 @@ pub fn start(args: &mut [String]) {
     }
     #[cfg(not(feature = "inline"))]
     {
-        // A UI vem do disco (src/ui ao lado do exe). No Windows o caminho tem barra
-        // invertida e "Program Files" tem espaco; "file://C:\Program Files\..." fica
-        // malformado e o sciter abre a janela em branco. Monta a URL correta:
-        // barra normal, espaco como %20 e tres barras.
-        let dir = std::env::current_dir()
-            .map(|c| c.display().to_string())
-            .unwrap_or_default()
-            .replace('\\', "/")
-            .replace(' ', "%20");
-        frame.load_file(&format!("file:///{}/src/ui/{}", dir, page));
+        // A UI vem do disco (src/ui ao lado do exe). No Windows, "Program Files" tem
+        // espaco e o file:// do sciter quebra (janela em branco). Usamos o caminho
+        // curto 8.3 (sem espacos) para montar a URL.
+        let dir = ui_base_dir();
+        let url = format!("file:///{}/src/ui/{}", dir, page);
+        log::info!("carregando UI de: {}", url);
+        frame.load_file(&url);
     }
     frame.run_app();
+}
+
+// Diretorio base (pasta do exe) para montar a URL da UI, com barras normais.
+// No Windows converte para o nome curto 8.3 para nao ter espacos ("Program Files").
+#[cfg(all(windows, not(feature = "inline")))]
+fn ui_base_dir() -> String {
+    use std::os::windows::ffi::{OsStrExt, OsStringExt};
+    let cwd = std::env::current_dir().unwrap_or_default();
+    let wide: Vec<u16> = cwd
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+    unsafe {
+        let len = winapi::um::fileapi::GetShortPathNameW(wide.as_ptr(), std::ptr::null_mut(), 0);
+        if len > 0 {
+            let mut buf = vec![0u16; len as usize];
+            let n =
+                winapi::um::fileapi::GetShortPathNameW(wide.as_ptr(), buf.as_mut_ptr(), len);
+            if n > 0 && (n as usize) < buf.len() {
+                let s = std::ffi::OsString::from_wide(&buf[..n as usize]);
+                return s.to_string_lossy().replace('\\', "/");
+            }
+        }
+    }
+    // Fallback (8.3 desativado no volume): barra normal + espaco encodado.
+    cwd.display()
+        .to_string()
+        .replace('\\', "/")
+        .replace(' ', "%20")
+}
+
+#[cfg(all(not(windows), not(feature = "inline")))]
+fn ui_base_dir() -> String {
+    std::env::current_dir()
+        .map(|c| c.display().to_string())
+        .unwrap_or_default()
 }
 
 #[cfg(windows)]
