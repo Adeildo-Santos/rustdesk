@@ -1168,6 +1168,19 @@ jobs:
           fi
           ./build.py --flutter --hwcodec --unix-file-copy-paste ${{ matrix.job.extra-build-args }}
 
+      - name: Reassinar o app ad-hoc (selo valido p/ Acessibilidade)
+        if: env.UPLOAD_ARTIFACT == 'true'
+        run: |
+          APP="./flutter/build/macos/Build/Products/Release/Ecletica Connect.app"
+          # build.py renomeia o executavel e adiciona o binario 'service' DEPOIS de o
+          # Xcode assinar, o que invalida o selo ad-hoc ("a sealed resource is missing
+          # or invalid"). Com o selo invalido + hardened runtime, o macOS nao honra a
+          # permissao de Acessibilidade e descarta os cliques sinteticos (ve a tela mas
+          # nao controla). Reassinar ad-hoc por ultimo regenera o CodeResources.
+          codesign --remove-signature "$APP" 2>/dev/null || true
+          codesign --force --deep --sign - "$APP"
+          codesign --verify --deep --strict "$APP" && echo "assinatura ad-hoc valida"
+
       - name: create unsigned dmg
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
