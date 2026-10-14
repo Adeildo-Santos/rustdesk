@@ -133,13 +133,18 @@ pub fn start(args: &mut [String]) {
         frame.load_html(html.as_bytes(), Some(page));
     }
     #[cfg(not(feature = "inline"))]
-    frame.load_file(&format!(
-        "file://{}/src/ui/{}",
-        std::env::current_dir()
+    {
+        // A UI vem do disco (src/ui ao lado do exe). No Windows o caminho tem barra
+        // invertida e "Program Files" tem espaco; "file://C:\Program Files\..." fica
+        // malformado e o sciter abre a janela em branco. Monta a URL correta:
+        // barra normal, espaco como %20 e tres barras.
+        let dir = std::env::current_dir()
             .map(|c| c.display().to_string())
-            .unwrap_or("".to_owned()),
-        page
-    ));
+            .unwrap_or_default()
+            .replace('\\', "/")
+            .replace(' ', "%20");
+        frame.load_file(&format!("file:///{}/src/ui/{}", dir, page));
+    }
     frame.run_app();
 }
 

@@ -1,6 +1,8 @@
 // Specify the Windows subsystem to eliminate console window.
 // Requires Rust 1.18.
-//#![windows_subsystem = "windows"]
+// Ecletica: no release (Windows) usa o subsistema de janela para NAO abrir o
+// console preto ao executar; no debug mantem o console para ver logs.
+#![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
 use hbb_common::log;
 use rustdesk::*;
