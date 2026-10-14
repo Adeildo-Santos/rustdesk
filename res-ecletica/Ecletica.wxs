@@ -2,14 +2,14 @@
 <!--
   Instalador unico Ecletica Connect (dual-arch).
   - Pacote marcado 32 bits (roda em qualquer Windows).
-  - Em Windows 64 bits instala o cliente Flutter (payload\x64).
+  - Em Windows 64 bits instala o cliente Flutter (payload\x64, Condition VersionNT64).
   - Em Windows 32 bits instala o cliente sciter legado (payload\x86).
   A config de rede (servidor/relay/api/key) ja vem embutida nos dois binarios,
   entao o MSI nao injeta .toml nem mexe em C:\Users, taskkill ou sc.
+  Os componentes por arquivo vem de Payload.wxs (gerado por gen_components.py).
   UpgradeCode igual ao do MSI de 64 bits atual, para atualizar por cima da base.
 -->
-<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
-     xmlns:fw="http://wixtoolset.org/schemas/v4/wxs/firewall">
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
 
   <?define Product = "Ecletica Connect" ?>
   <?define Manufacturer = "Eclética" ?>
@@ -49,52 +49,11 @@
     </StandardDirectory>
     <StandardDirectory Id="DesktopFolder" />
 
-    <!-- ===== 64 bits (cliente Flutter) ===== -->
-    <Feature Id="ClientX64" Title="$(var.Product) (64 bits)" Level="0" AllowAbsent="no">
-      <Level Level="1" Condition="VersionNT64" />
-      <Files Directory="INSTALLFOLDER" Include="payload\x64\**"
-             Exclude="payload\x64\Ecletica Connect.exe" />
-      <ComponentRef Id="MainExeX64" />
-      <ComponentGroupRef Id="SharedShortcuts" />
-    </Feature>
-
-    <!-- ===== 32 bits (cliente sciter legado) ===== -->
-    <Feature Id="ClientX86" Title="$(var.Product) (32 bits)" Level="0" AllowAbsent="no">
-      <Level Level="1" Condition="NOT VersionNT64" />
-      <Files Directory="INSTALLFOLDER" Include="payload\x86\**"
-             Exclude="payload\x86\Ecletica Connect.exe" />
-      <ComponentRef Id="MainExeX86" />
+    <Feature Id="Main" Title="$(var.Product)" Level="1" AllowAbsent="no">
+      <ComponentGroupRef Id="Payload" />
       <ComponentGroupRef Id="SharedShortcuts" />
     </Feature>
   </Package>
-
-  <!-- exe principal 64 bits (com servico e firewall) -->
-  <Fragment>
-    <Component Id="MainExeX64" Directory="INSTALLFOLDER" Guid="*">
-      <File Id="ExeX64" Source="payload\x64\Ecletica Connect.exe" KeyPath="yes">
-        <fw:FirewallException Id="FwX64" Name="$(var.Product)" Scope="any" IgnoreFailure="yes" />
-      </File>
-      <ServiceInstall Id="SvcX64" Name="$(var.Product)" DisplayName="$(var.Product) Service"
-                      Start="auto" Type="ownProcess" ErrorControl="normal"
-                      Arguments="--service" Account="LocalSystem" Vital="no" />
-      <ServiceControl Id="SvcCtrlX64" Name="$(var.Product)"
-                      Start="install" Stop="both" Remove="uninstall" Wait="no" />
-    </Component>
-  </Fragment>
-
-  <!-- exe principal 32 bits (com servico e firewall) -->
-  <Fragment>
-    <Component Id="MainExeX86" Directory="INSTALLFOLDER" Guid="*">
-      <File Id="ExeX86" Source="payload\x86\Ecletica Connect.exe" KeyPath="yes">
-        <fw:FirewallException Id="FwX86" Name="$(var.Product)" Scope="any" IgnoreFailure="yes" />
-      </File>
-      <ServiceInstall Id="SvcX86" Name="$(var.Product)" DisplayName="$(var.Product) Service"
-                      Start="auto" Type="ownProcess" ErrorControl="normal"
-                      Arguments="--service" Account="LocalSystem" Vital="no" />
-      <ServiceControl Id="SvcCtrlX86" Name="$(var.Product)"
-                      Start="install" Stop="both" Remove="uninstall" Wait="no" />
-    </Component>
-  </Fragment>
 
   <!-- Atalhos (servem para as duas arquiteturas; o exe tem sempre o mesmo nome/pasta) -->
   <Fragment>

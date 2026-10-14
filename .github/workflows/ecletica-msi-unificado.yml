@@ -97,13 +97,20 @@ jobs:
           export PATH="$PATH:$HOME/.dotnet/tools"
           wix extension add -g WixToolset.Firewall.wixext/4.0.5
 
+      - name: Gerar a lista de componentes (Payload.wxs)
+        shell: bash
+        run: |
+          set -e
+          cd res-ecletica
+          python gen_components.py
+
       - name: Construir o MSI
         shell: bash
         run: |
           set -e
           export PATH="$PATH:$HOME/.dotnet/tools"
           cd res-ecletica
-          wix build Ecletica.wxs \
+          wix build Ecletica.wxs Payload.wxs \
             -arch x86 \
             -ext WixToolset.Firewall.wixext \
             -d Version="$V" \
