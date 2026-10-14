@@ -15,6 +15,12 @@ on:
       versao:
         description: "Versao do pacote (campos do MSI)"
         default: "1.5.20"
+  push:
+    branches:
+      - ecletica-x86-msi
+    paths:
+      - "res-ecletica/**"
+      - ".github/workflows/ecletica-msi-unificado.yml"
 
 permissions:
   contents: read
@@ -26,7 +32,7 @@ jobs:
     runs-on: windows-2022
     env:
       GH_TOKEN: ${{ github.token }}
-      V: ${{ inputs.versao }}
+      V: ${{ inputs.versao || '1.5.20' }}
     steps:
       - name: Baixar o codigo (WiX + src/ui do cliente 32 bits)
         uses: actions/checkout@v4
