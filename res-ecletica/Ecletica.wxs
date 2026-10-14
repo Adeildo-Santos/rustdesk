@@ -35,11 +35,20 @@
                   AllowSameVersionUpgrades="yes" />
 
     <!-- Pasta de instalacao: forca o Program Files real no Windows 64 bits
-         (o pacote e 32 bits e cairia em Program Files (x86)). -->
-    <SetProperty Id="INSTALLFOLDER" Before="CostFinalize"
-                 Value="[%ProgramW6432]\$(var.Product)" Condition="VersionNT64" />
-    <SetProperty Id="INSTALLFOLDER" Before="CostFinalize"
-                 Value="[ProgramFilesFolder]$(var.Product)" Condition="NOT VersionNT64" />
+         (o pacote e 32 bits e cairia em Program Files (x86)). Duas CustomActions
+         distintas para nao colidir o Id ao condicionar por arquitetura. -->
+    <CustomAction Id="SetInstX64" Property="INSTALLFOLDER"
+                  Value="[%ProgramW6432]\$(var.Product)" />
+    <CustomAction Id="SetInstX86" Property="INSTALLFOLDER"
+                  Value="[ProgramFilesFolder]$(var.Product)" />
+    <InstallUISequence>
+      <Custom Action="SetInstX64" Before="CostFinalize" Condition="VersionNT64" />
+      <Custom Action="SetInstX86" Before="CostFinalize" Condition="NOT VersionNT64" />
+    </InstallUISequence>
+    <InstallExecuteSequence>
+      <Custom Action="SetInstX64" Before="CostFinalize" Condition="VersionNT64" />
+      <Custom Action="SetInstX86" Before="CostFinalize" Condition="NOT VersionNT64" />
+    </InstallExecuteSequence>
 
     <StandardDirectory Id="ProgramFilesFolder">
       <Directory Id="INSTALLFOLDER" Name="$(var.Product)" />
