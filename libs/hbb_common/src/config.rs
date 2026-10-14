@@ -43,11 +43,12 @@ const CHARS: &'static [char] = &[
     'm', 'n', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
 ];
 
-pub const RENDEZVOUS_SERVERS: &'static [&'static str] = &[
-    "rs-ny.rustdesk.com",
-    "rs-sg.rustdesk.com",
-    "rs-cn.rustdesk.com",
-];
+// Eclética (custom client): servidor próprio embutido em tempo de compilação.
+pub const RENDEZVOUS_SERVERS: &'static [&'static str] = &["app.ecletico.ai"];
+// Config de fábrica da Eclética usada quando a opção ainda não foi gravada.
+// Mantém o cliente 32 bits configurado sem precisar injetar .toml depois.
+pub const ECLETICA_RS_PUB_KEY: &str = "xaLY1y7ytr8vqykrRyukSTeg0zIsqzDscsPAi5tVlYY=";
+pub const ECLETICA_API_SERVER: &str = "https://app.ecletico.ai/rustdesk";
 pub const RENDEZVOUS_PORT: i32 = 21116;
 pub const RELAY_PORT: i32 = 21117;
 
@@ -542,10 +543,24 @@ impl Config {
     }
 
     pub fn get_option(k: &str) -> String {
-        if let Some(v) = CONFIG2.read().unwrap().options.get(k) {
-            v.clone()
-        } else {
-            "".to_owned()
+        let v = CONFIG2
+            .read()
+            .unwrap()
+            .options
+            .get(k)
+            .cloned()
+            .unwrap_or_default();
+        if !v.is_empty() {
+            return v;
+        }
+        // Config de fábrica da Eclética: aplicada quando a opção ainda não foi
+        // gravada, para o cliente já nascer apontando para o nosso servidor
+        // (sem injeção de .toml depois da instalação).
+        match k {
+            "custom-rendezvous-server" | "relay-server" => RENDEZVOUS_SERVERS[0].to_owned(),
+            "api-server" => ECLETICA_API_SERVER.to_owned(),
+            "key" => ECLETICA_RS_PUB_KEY.to_owned(),
+            _ => "".to_owned(),
         }
     }
 
