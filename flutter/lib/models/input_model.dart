@@ -1283,10 +1283,16 @@ class InputModel {
     _relativeMouse.onWindowFocus();
   }
 
+  // No desktop (macOS/Win/Linux) o clique do trackpad chega com kind=trackpad.
+  // Tratamos trackpad como mouse para nao descartar clique/arraste/movimento.
+  bool _isMouseLikeKind(ui.PointerDeviceKind k) =>
+      k == ui.PointerDeviceKind.mouse ||
+      (isDesktop && k == ui.PointerDeviceKind.trackpad);
+
   void onPointHoverImage(PointerHoverEvent e) {
     _stopFling = true;
     if (isViewOnly && !showMyCursor) return;
-    if (e.kind != ui.PointerDeviceKind.mouse) return;
+    if (!_isMouseLikeKind(e.kind)) return;
 
     // May fix https://github.com/rustdesk/rustdesk/issues/13009
     if (isIOS && e.synthesized && e.position == Offset.zero && e.buttons == 0) {
@@ -1521,7 +1527,7 @@ class InputModel {
 
     // Track mouse down events for duplicate detection on iOS.
     final nowMs = DateTime.now().millisecondsSinceEpoch;
-    if (e.kind == ui.PointerDeviceKind.mouse) {
+    if (_isMouseLikeKind(e.kind)) {
       if (!isPhysicalMouse.value) {
         isPhysicalMouse.value = true;
       }
@@ -1533,7 +1539,7 @@ class InputModel {
       _relativeMouse.updatePointerRegionTopLeftGlobal(e);
     }
 
-    if (e.kind != ui.PointerDeviceKind.mouse) {
+    if (!_isMouseLikeKind(e.kind)) {
       // Ignore duplicate touch events that follow a recent mouse click (iOS Magic Mouse issue).
       if (isPhysicalMouse.value && _shouldIgnoreTouchAfterMouse(nowMs)) {
         return;
@@ -1564,7 +1570,7 @@ class InputModel {
       _relativeMouse.updatePointerRegionTopLeftGlobal(e);
     }
 
-    if (e.kind != ui.PointerDeviceKind.mouse) return;
+    if (!_isMouseLikeKind(e.kind)) return;
     if (isPhysicalMouse.value) {
       // In relative mouse mode, send button events without position.
       // Use _relativeMouse.enabled.value consistently with the guard above.
@@ -1581,7 +1587,7 @@ class InputModel {
   void onPointMoveImage(PointerMoveEvent e) {
     if (isViewOnly && !showMyCursor) return;
     if (isViewCamera) return;
-    if (e.kind != ui.PointerDeviceKind.mouse) return;
+    if (!_isMouseLikeKind(e.kind)) return;
 
     if (_relativeMouse.enabled.value) {
       _relativeMouse.updatePointerRegionTopLeftGlobal(e);
