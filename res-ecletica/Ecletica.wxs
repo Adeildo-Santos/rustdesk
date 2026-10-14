@@ -26,7 +26,7 @@
 
     <SummaryInformation Keywords="Installer" Description="$(var.Product) - instalador (64 e 32 bits)" />
     <Media Id="1" Cabinet="cab1.cab" EmbedCab="yes" CompressionLevel="high" />
-    <Icon Id="AppIcon" SourceFile="payload\x86\icon.ico" />
+    <Icon Id="AppIcon" SourceFile="app.ico" />
     <Property Id="ARPPRODUCTICON" Value="AppIcon" />
     <Property Id="ARPURLINFOABOUT" Value="https://app.ecletico.ai" />
 
@@ -48,6 +48,7 @@
     <InstallExecuteSequence>
       <Custom Action="SetInstX64" Before="CostFinalize" Condition="VersionNT64" />
       <Custom Action="SetInstX86" Before="CostFinalize" Condition="NOT VersionNT64" />
+      <Custom Action="LaunchTray" After="InstallFinalize" Condition="NOT REMOVE" />
     </InstallExecuteSequence>
 
     <StandardDirectory Id="ProgramFilesFolder">
@@ -57,6 +58,14 @@
       <Directory Id="AppMenuFolder" Name="$(var.Product)" />
     </StandardDirectory>
     <StandardDirectory Id="DesktopFolder" />
+    <StandardDirectory Id="StartupFolder" />
+
+    <!-- Apos instalar, sobe o processo da bandeja (modo tray) na sessao do usuario.
+         E ele, junto com o servico, que injeta o input e lida com a tela do UAC;
+         sem isso da para ver a tela mas nao clicar. (instalacao interativa) -->
+    <CustomAction Id="LaunchTray" Directory="INSTALLFOLDER"
+                  ExeCommand="&quot;[INSTALLFOLDER]Ecletica Connect.exe&quot; --tray"
+                  Return="asyncNoWait" Impersonate="yes" />
 
     <Feature Id="Main" Title="$(var.Product)" Level="1" AllowAbsent="no">
       <ComponentGroupRef Id="Payload" />
@@ -73,6 +82,10 @@
                   WorkingDirectory="INSTALLFOLDER" Icon="AppIcon" />
         <Shortcut Id="MenuSc" Name="$(var.Product)"
                   Target="[INSTALLFOLDER]Ecletica Connect.exe"
+                  WorkingDirectory="INSTALLFOLDER" Icon="AppIcon" />
+        <!-- Sobe a bandeja no logon de qualquer usuario (necessario p/ injetar input) -->
+        <Shortcut Id="TraySc" Directory="StartupFolder" Name="$(var.Product) Tray"
+                  Target="[INSTALLFOLDER]Ecletica Connect.exe" Arguments="--tray"
                   WorkingDirectory="INSTALLFOLDER" Icon="AppIcon" />
         <RemoveFolder Id="RemoveAppMenuFolder" Directory="AppMenuFolder" On="uninstall" />
         <RegistryValue Root="HKCU" Key="Software\Ecletica\Connect"
