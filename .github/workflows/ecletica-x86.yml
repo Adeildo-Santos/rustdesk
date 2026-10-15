@@ -133,7 +133,7 @@ jobs:
           Write-Host "SODIUM_LIB_DIR_64 = $env:SODIUM_LIB_DIR_64"
 
           # 3) compilar
-          cargo build --release --target i686-pc-windows-msvc 2>&1 | Tee-Object -FilePath build.log
+          cargo build --release --target i686-pc-windows-msvc --features inline 2>&1 | Tee-Object -FilePath build.log
           if ($LASTEXITCODE -ne 0) {
             Get-Content build.log -Tail 120
             # o que o crate pediu ao linker (o cargo grava a saida de cada build script)
@@ -158,6 +158,13 @@ jobs:
           $txt = [Text.Encoding]::Unicode.GetString($b)
           if ($txt -notmatch "Ecletica Connect") { throw "a marca nao entrou no executavel" }
           "marca confirmada dentro do executavel"
+          # a interface tem que estar DENTRO do executavel (modo embutido):
+          # sem isso a janela abre sem conteudo, que e o defeito que estamos corrigindo
+          $u8 = [Text.Encoding]::UTF8.GetString($b)
+          if ($u8 -notmatch "sciter:reactor\.tis") { throw "a interface NAO entrou embutida no executavel" }
+          if ($u8 -notmatch "Privacy Statement") { throw "a interface entrou incompleta" }
+          $tamUi = ($u8 | Select-String -Pattern "sciter:reactor\.tis" -AllMatches).Matches.Count
+          "interface embutida confirmada dentro do executavel ($tamUi marcas encontradas)"
 
       - name: Empacotar instalador proprio
         shell: pwsh

@@ -130,7 +130,13 @@ pub fn start(args: &mut [String]) {
         } else {
             inline::get_remote()
         };
-        frame.load_html(html.as_bytes(), Some(page));
+        let r = frame.load_html(html.as_bytes(), Some(page));
+        crate::ec_trace::linha(&format!(
+            "modo embutido: pagina={} bytes={} motor={:?}",
+            page,
+            html.len(),
+            r
+        ));
     }
     #[cfg(not(feature = "inline"))]
     {
@@ -193,9 +199,9 @@ pub fn start(args: &mut [String]) {
         let sep = std::path::MAIN_SEPARATOR;
         let diante = nativo.replace(sep, "/");
         let tentativas = [
-            nativo.clone(),                          // 1) caminho do Windows, cru
-            format!("file://{}", diante),            // 2) file://C:/...
-            format!("file:///{}", diante.trim_start_matches('/')), // 3) file:///C:/...
+            format!("file:///{}", diante.trim_start_matches('/')), // 1) URL com barra normal
+            format!("file://{}", diante),            // 2) URL sem a terceira barra
+            nativo.clone(),                          // 3) caminho do Windows, cru (aceito em 15/10)
             url.clone(),                             // 4) forma com %20
         ];
         let aceitou = tentativas.iter().enumerate().find_map(|(i, t)| {
@@ -707,6 +713,12 @@ impl UI {
         crate::client::translate(name)
     }
 
+    /// Ecletica: ponte para a interface gravar no rastro em arquivo. Existe porque
+    /// o binario nao tem console; sem isso, um erro de JavaScript nao deixa pista.
+    fn ec_log(&self, s: String) {
+        crate::ec_trace::linha(&format!("js: {}", s));
+    }
+
     fn is_xfce(&self) -> bool {
         crate::platform::is_xfce()
     }
@@ -715,6 +727,7 @@ impl UI {
 impl sciter::EventHandler for UI {
     sciter::dispatch_script_call! {
         fn t(String);
+        fn ec_log(String);
         fn is_xfce();
         fn get_id();
         fn get_password();
