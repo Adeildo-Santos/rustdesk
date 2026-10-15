@@ -32,6 +32,10 @@ cm = open('src/ui/cm.html').read() \
     .replace('@import url(cm.css);', open('src/ui/cm.css').read()) \
     .replace('include "cm.tis";', open('src/ui/cm.tis').read())
 
+# Ecletica: a janela de mensagens (msgbox) tambem e embutida -- o programa chama
+# inline::get_msgbox() (src/ui.rs). Sem isso a compilacao falha no modo embutido.
+msgbox = open('src/ui/msgbox.html').read().replace('include "msgbox.tis";', open('src/ui/msgbox.tis').read())
+
 
 def compress(s):
     s = s.replace("\r\n", "\n")
@@ -47,6 +51,7 @@ with open('src/ui/inline.rs', 'wt') as fh:
     fh.write('const _REMOTE: ' + compress(strip(remote)) + ';\n')
     fh.write('const _CHATBOX: ' + compress(strip(chatbox)) + ';\n')
     fh.write('const _INSTALL: ' + compress(strip(install)) + ';\n')
+    fh.write('const _MSGBOX: ' + compress(strip(msgbox)) + ';\n')
     fh.write('const _CONNECTION_MANAGER: ' + compress(strip(cm)) + ';\n')
     fh.write('''
 fn get(data: &[u8]) -> String {
@@ -73,6 +78,10 @@ pub fn get_install() -> String {
 #[inline]
 pub fn get_chatbox() -> String {
     replace(&_CHATBOX[..])
+}
+#[inline]
+pub fn get_msgbox() -> String {
+    replace(&_MSGBOX[..])
 }
 #[inline]
 pub fn get_cm() -> String {
