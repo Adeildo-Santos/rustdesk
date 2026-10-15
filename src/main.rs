@@ -1,6 +1,9 @@
 // Specify the Windows subsystem to eliminate console window.
 // Requires Rust 1.18.
-//#![windows_subsystem = "windows"]
+// Ecletica: LIGADO. Com a linha comentada o binario de 32 bits sai como CONSOLE
+// (subsistema 3): nao abre janela nenhuma ("tela preta") e o --reinstall/--import-config
+// ficam sem efeito visivel. So vale para Windows; nos outros alvos e ignorado.
+#![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
 use hbb_common::log;
 use rustdesk::*;
