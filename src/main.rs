@@ -19,6 +19,14 @@ fn main() {
 
 #[cfg(not(any(target_os = "android", target_os = "ios", feature = "cli")))]
 fn main() {
+    // Ecletica: o binario e de janela (sem console). Sem este rastro nao ha como
+    // saber o que aconteceu quando a interface nao desenha.
+    rustdesk::ec_trace::instala_gancho_de_panico();
+    rustdesk::ec_trace::linha(&format!(
+        "=== inicio do cliente {} (pasta do executavel: {:?})",
+        env!("CARGO_PKG_VERSION"),
+        std::env::current_exe()
+    ));
     // Ecletica: a interface (src/ui) e carregada por caminho relativo, entao fixamos o
     // diretorio de trabalho na pasta do proprio executavel para ela sempre ser achada.
     if let Ok(exe) = std::env::current_exe() {

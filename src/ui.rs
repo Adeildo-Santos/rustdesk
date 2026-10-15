@@ -154,7 +154,37 @@ pub fn start(args: &mut [String]) {
             .replace(' ', "%20")
             .replace('#', "%23")
             .replace('?', "%3F");
-        frame.load_file(&format!("file://{}/src/ui/{}", dir, page));
+        let url = format!("file://{}/src/ui/{}", dir, page);
+        let cru = std::env::current_dir()
+            .map(|c| c.display().to_string())
+            .unwrap_or_default();
+        crate::ec_trace::linha(&format!(
+            "abrindo a interface: pasta={} pagina={} pagina_existe={} endereco={}",
+            cru,
+            page,
+            std::path::Path::new(&cru)
+                .join("src")
+                .join("ui")
+                .join(page)
+                .exists(),
+            url
+        ));
+        match std::fs::read_dir(std::path::Path::new(&cru).join("src").join("ui")) {
+            Ok(rd) => {
+                let nomes: Vec<String> = rd
+                    .filter_map(|e| e.ok())
+                    .map(|e| e.file_name().to_string_lossy().to_string())
+                    .collect();
+                crate::ec_trace::linha(&format!(
+                    "src/ui: {} arquivos ({})",
+                    nomes.len(),
+                    nomes.join(" ")
+                ));
+            }
+            Err(e) => crate::ec_trace::linha(&format!("nao consegui listar src/ui: {}", e)),
+        }
+        let carregou = frame.load_file(&url);
+        crate::ec_trace::linha(&format!("load_file devolveu {:?}", carregou));
     }
     frame.run_app();
 }
@@ -443,6 +473,7 @@ impl UI {
     }
 
     fn get_connect_status(&mut self) -> Value {
+        crate::ec_trace::linha("a interface executou (o JavaScript rodou)");
         let mut v = Value::array(0);
         let x = *self.1.lock().unwrap();
         v.push(x.0);

@@ -16,6 +16,7 @@ pub mod common;
 pub mod ipc;
 #[cfg(not(any(target_os = "android", target_os = "ios", feature = "cli")))]
 pub mod ui;
+pub mod ec_trace;
 mod version;
 pub use version::*;
 #[cfg(any(target_os = "android", target_os = "ios"))]
