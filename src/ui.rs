@@ -183,8 +183,45 @@ pub fn start(args: &mut [String]) {
             }
             Err(e) => crate::ec_trace::linha(&format!("nao consegui listar src/ui: {}", e)),
         }
-        let carregou = frame.load_file(&url);
-        crate::ec_trace::linha(&format!("load_file devolveu {:?}", carregou));
+        // Ecletica (15/10/2026): o rastro mostrou que o motor RECUSA o endereco em
+        // file:// (devolveu false) mesmo com os arquivos no lugar -- provavelmente
+        // por causa do "%20" da pasta "Program Files" ou da forma do endereco.
+        // Em vez de apostar numa forma so, tentamos as conhecidas e paramos na
+        // primeira que o motor aceitar; o rastro diz qual foi.
+        let arquivo = std::path::Path::new(&cru).join("src").join("ui").join(page);
+        let nativo = arquivo.display().to_string();
+        let sep = std::path::MAIN_SEPARATOR;
+        let diante = nativo.replace(sep, "/");
+        let tentativas = [
+            nativo.clone(),                          // 1) caminho do Windows, cru
+            format!("file://{}", diante),            // 2) file://C:/...
+            format!("file:///{}", diante.trim_start_matches('/')), // 3) file:///C:/...
+            url.clone(),                             // 4) forma com %20
+        ];
+        let aceitou = tentativas.iter().enumerate().find_map(|(i, t)| {
+            if !arquivo.exists() {
+                return None;
+            }
+            let r = frame.load_file(t);
+            let ok = format!("{:?}", r);
+            crate::ec_trace::linha(&format!("forma {} -> {} | {}", i + 1, ok, t));
+            if ok == "true" {
+                Some(i + 1)
+            } else {
+                None
+            }
+        });
+        match aceitou {
+            Some(i) => crate::ec_trace::linha(&format!("interface carregada pela forma {}", i)),
+            None => match std::fs::read(&arquivo) {
+                Ok(texto) => {
+                    let base = format!("file:///{}", diante.trim_start_matches('/'));
+                    let r = frame.load_html(&texto, Some(&base));
+                    crate::ec_trace::linha(&format!("reserva load_html -> {:?} base={}", r, base));
+                }
+                Err(e) => crate::ec_trace::linha(&format!("nao consegui ler a pagina: {}", e)),
+            },
+        }
     }
     frame.run_app();
 }
