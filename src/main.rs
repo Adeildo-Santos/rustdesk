@@ -75,6 +75,17 @@ fn main() {
             })
             .ok();
     }
+    // Ecletica: uma maquina deve ter UM cliente aberto. Duas copias registram a
+    // mesma maquina com identidades diferentes e embaralham a conexao no servidor.
+    // Vale para a abertura normal e para o atalho da bandeja; os modos de comando
+    // (--service, --reinstall, --import-config) seguem intocados.
+    let eh_interface = args.is_empty() || args[0] == "--tray";
+    if eh_interface && !rustdesk::ec_trace::segura_copia_unica() {
+        rustdesk::ec_trace::linha(
+            "ja existe um Ecletica Connect aberto nesta maquina: esta copia vai fechar",
+        );
+        return;
+    }
     if args.is_empty() {
         std::thread::spawn(move || start_server(false, false));
     } else {

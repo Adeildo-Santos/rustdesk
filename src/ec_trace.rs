@@ -40,3 +40,38 @@ pub fn instala_gancho_de_panico() {
         anterior(info);
     }));
 }
+
+/// Ecletica: garante UM cliente por maquina.
+///
+/// Duas copias abertas ao mesmo tempo registram a mesma maquina com identidades
+/// diferentes e a conexao passa a falhar no servidor (chave trocada para o mesmo
+/// ID). A primeira copia segura uma porta local; a segunda nao consegue e fecha.
+///
+/// Devolve `true` quando esta copia pode seguir (ela e a dona da porta).
+pub fn segura_copia_unica() -> bool {
+    let porta: u16 = 42548;
+    match std::net::TcpListener::bind(("127.0.0.1", porta)) {
+        Ok(ouvinte) => {
+            // Mantem o ouvinte vivo enquanto o programa estiver rodando.
+            if let Ok(mut g) = TRAVA.lock() {
+                *g = Some(ouvinte);
+            }
+            true
+        }
+        Err(e) => {
+            if std::net::TcpStream::connect(("127.0.0.1", porta)).is_ok() {
+                false
+            } else {
+                // Porta ocupada por outro programa: nao impedimos o cliente de abrir.
+                linha(&format!(
+                    "aviso: porta {} ocupada por outro programa ({}) - o cliente segue",
+                    porta, e
+                ));
+                true
+            }
+        }
+    }
+}
+
+/// Guarda o ouvinte da trava (fica com o programa ate ele terminar).
+static TRAVA: std::sync::Mutex<Option<std::net::TcpListener>> = std::sync::Mutex::new(None);
