@@ -13,6 +13,11 @@ use std::{
 };
 
 pub const APP_NAME: &str = "Ecletica Connect";
+// Ecletica: nome da pasta de dados, dos arquivos de configuracao e do log.
+// Continua o antigo ("RustDesk") de proposito: e onde mora o ID e a configuracao
+// das maquinas ja instaladas. Trocar esse nome daria um ID novo para cada maquina
+// e perderia a configuracao. O nome mostrado ao usuario e APP_NAME.
+pub const DATA_NAME: &str = "RustDesk";
 pub const RENDEZVOUS_TIMEOUT: u64 = 12_000;
 pub const CONNECT_TIMEOUT: u64 = 18_000;
 pub const COMPRESS_LEVEL: i32 = 3;
@@ -253,7 +258,7 @@ impl Config {
     }
 
     fn file_(suffix: &str) -> PathBuf {
-        let name = format!("{}{}", APP_NAME, suffix);
+        let name = format!("{}{}", DATA_NAME, suffix);
         Self::path(name).with_extension("toml")
     }
 
@@ -281,7 +286,7 @@ impl Config {
         #[cfg(target_os = "macos")]
         let org = ORG;
         // /var/root for root
-        if let Some(project) = ProjectDirs::from("", org, APP_NAME) {
+        if let Some(project) = ProjectDirs::from("", org, DATA_NAME) {
             let mut path = patch(project.config_dir().to_path_buf());
             path.push(p);
             return path;

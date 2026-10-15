@@ -133,13 +133,29 @@ pub fn start(args: &mut [String]) {
         frame.load_html(html.as_bytes(), Some(page));
     }
     #[cfg(not(feature = "inline"))]
-    frame.load_file(&format!(
-        "file://{}/src/ui/{}",
-        std::env::current_dir()
+    {
+        // Ecletica: o caminho cru do Windows nao serve como endereco. Instalado
+        // em "C:\Program Files\Ecletica Connect" a montagem antiga produzia
+        // "file://C:\Program Files\.../src/ui/index.html" (barra invertida e
+        // espaco), que o sciter nao carrega -- a janela abre e fica preta.
+        // Aqui vira um endereco valido: file:///C:/Program%20Files/...
+        let dir = std::env::current_dir()
             .map(|c| c.display().to_string())
-            .unwrap_or("".to_owned()),
-        page
-    ));
+            .unwrap_or_default();
+        let dir = dir.replace('\\', "/");
+        let dir = dir.strip_prefix("//?/").unwrap_or(&dir).to_string();
+        let dir = if dir.starts_with('/') {
+            dir
+        } else {
+            format!("/{}", dir)
+        };
+        let dir = dir
+            .replace('%', "%25")
+            .replace(' ', "%20")
+            .replace('#', "%23")
+            .replace('?', "%3F");
+        frame.load_file(&format!("file://{}/src/ui/{}", dir, page));
+    }
     frame.run_app();
 }
 
