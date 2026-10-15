@@ -1,4 +1,4 @@
-import { is_osx,view,OS,handler,translate,msgbox,is_win,svg_checkmark,svg_edit,isReasonableSize,centerize,svg_eye, PasswordComponent } from "./common";
+import { is_osx,view,OS,handler,translate,msgbox,is_win,svg_checkmark,svg_edit,isReasonableSize,centerize,svg_eye, PasswordComponent } from "./common.js";
 import { SearchBar,SessionStyle,SessionList, MultipleSessions } from "./ab.js";
 import {$} from "@sciter"; //TEST $$ import
 

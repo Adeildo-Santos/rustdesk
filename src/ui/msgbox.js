@@ -1,4 +1,4 @@
-import { PasswordComponent } from "./common";
+import { PasswordComponent } from "./common.js";
 import {$,$$} from "@sciter"; //TEST $$ import
 const view = Window.this;
 var type, title, text, getParams, remember, retry, callback, contentStyle;
