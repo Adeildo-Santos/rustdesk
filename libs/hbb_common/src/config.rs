@@ -511,6 +511,12 @@ impl Config {
         config.store();
     }
 
+    /// Ecletica: existe par de chaves guardado? Le sem gerar um novo,
+    /// (get_key_pair() gera e grava quando o par esta vazio).
+    pub fn has_key_pair() -> bool {
+        !CONFIG.read().unwrap().key_pair.0.is_empty()
+    }
+
     pub fn get_key_pair() -> (Vec<u8>, Vec<u8>) {
         // lock here to make sure no gen_keypair more than once
         let mut config = CONFIG.write().unwrap();

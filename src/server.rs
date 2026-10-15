@@ -285,9 +285,13 @@ pub async fn start_server(is_server: bool, _tray: bool) {
                     log::info!("server info: {:?}", data);
                 }
                 // sync key pair
+                // Ecletica: o cliente NAO gera identidade propria, ele adota a do servico.
+                // Se key_confirmed ficou marcado mas o par esta VAZIO (estado deixado por
+                // instalacao antiga), o cliente ficava sem identidade para sempre e a
+                // conexao morria antes de pedir senha, nos dois sentidos.
                 let mut n = 0;
                 loop {
-                    if Config::get_key_confirmed() {
+                    if Config::get_key_confirmed() && Config::has_key_pair() {
                         // check ipc::get_id(), key_confirmed may change, so give some chance to correct
                         n += 1;
                         if n > 3 {
@@ -305,6 +309,11 @@ pub async fn start_server(is_server: bool, _tray: bool) {
                             log::info!("key pair synced");
                             break;
                         } else {
+                            n += 1;
+                            if n > 5 {
+                                log::warn!("key pair NOT synced (empty pair)");
+                                break;
+                            }
                             sleep(1.).await;
                         }
                     }
