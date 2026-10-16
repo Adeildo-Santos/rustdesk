@@ -133,6 +133,12 @@ checar("32 bits se atualiza pelo executavel, nao pelo MSI",
        contem("src/updater.rs", 'let update_msi = update_msi && cfg!(feature = "flutter");'))
 checar("arquivo do 32 bits publicado na release da versao (atualizador)",
        contem(WORKFLOW, "files: ./SignOutput/rustdesk-${{ env.VERSION }}-x86-sciter.exe"))
+win = ler("src/platform/windows.rs")
+checar("registro de 'Adicionar ou remover programas' com aspas (bug: 32 bits nao saia da lista ao desinstalar)",
+       "reg add {subkey}" not in win and "reg delete {subkey}" not in win
+       and 'reg delete \\"{subkey}\\" /f' in win and win.count('reg add \\"{subkey}\\" /f') >= 21)
+checar("desinstalacao espera os processos fecharem antes de apagar a pasta (bug: sobravam arquivos)",
+       'ping -n 4 127.0.0.1 > nul\n    if exist \\"{path}\\" rd /s /q' in win)
 checar("pasta de dados congelada (guarda ID e senha das maquinas)",
        contem("libs/hbb_common/src/config.rs", 'pub const DATA_DIR_NAME: &str = "Ecletica Acesso Remoto";'))
 checar("UpgradeCode do MSI congelado (atualiza por cima, sem instalar duplicado)",
