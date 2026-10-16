@@ -736,7 +736,7 @@ impl sciter::EventHandler for UI {
         fn set_remote_id(String);
         fn save_size(i32, i32, i32, i32);
         fn get_size();
-        fn new_remote(String, bool);
+        fn new_remote(String, String);
         fn remove_peer(String);
         fn get_connect_status();
         fn get_recent_sessions();
