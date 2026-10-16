@@ -951,6 +951,26 @@ sc start {app_name}
         ext=ext,
     );
     run_cmds(cmds, false)?;
+
+    // Ecletica: copiar a biblioteca da janela e o icone para junto do executavel instalado.
+    // O passo acima copia SO o executavel, mas a janela precisa da sciter.dll ao lado dele:
+    // sem isso o cliente instalado nao abre e o rastro acusa "'sciter.dll' was not found
+    // neither in PATH nor near the current executable" (maquina de 32 bits, 15/10/2026).
+    // Nada e' apagado: so acrescenta arquivos.
+    {
+        let origem = std::path::Path::new(&src_exe)
+            .parent()
+            .map(|p| p.to_path_buf());
+        let destino = std::path::Path::new(&exe).parent().map(|p| p.to_path_buf());
+        if let (Some(origem), Some(destino)) = (origem, destino) {
+            for nome in ["sciter.dll", "icon.ico", "ecletica-connect-3.ico"] {
+                let de = origem.join(nome);
+                if de.is_file() && origem != destino {
+                    let _ = std::fs::copy(&de, destino.join(nome));
+                }
+            }
+        }
+    }
     std::thread::sleep(std::time::Duration::from_millis(2000));
     std::process::Command::new(&exe).spawn()?;
     std::process::Command::new(&exe).arg("--tray").spawn()?;
