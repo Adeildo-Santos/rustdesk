@@ -575,7 +575,17 @@ impl UI {
 
     fn new_remote(&mut self, id: String, remote_type: String) {
         let mut lock = self.0.lock().unwrap();
-        let args = vec![format!("--{}", remote_type), id.clone()];
+        // Ecletica: a tela manda "" (conectar), "file" e "rdp"; o programa so entende
+        // --connect, --file-transfer, --port-forward e --rdp. Sem esta traducao o processo
+        // filho recebia "--" + id, nao casava com modo nenhum e morria em "Wrong command":
+        // era o "o botao pisca e nada acontece" no cliente de 32 bits (15/10/2026).
+        let modo = match remote_type.as_str() {
+            "" | "connect" | "remote" => "--connect".to_owned(),
+            "file" | "file-transfer" => "--file-transfer".to_owned(),
+            "port_forward" | "port-forward" => "--port-forward".to_owned(),
+            outro => format!("--{}", outro),
+        };
+        let args = vec![modo, id.clone()];
         let key = (id.clone(), remote_type.clone());
         if let Some(c) = lock.1.get_mut(&key) {
             if let Ok(Some(_)) = c.try_wait() {
