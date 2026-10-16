@@ -48,7 +48,7 @@ env:
   VCPKG_COMMIT_ID: "9e593bb18ea69cc5095e012465dcd675a822ed0d"
   VCPKG_CMAKE_VERSION: "4.3.0"
   ARMV7_VCPKG_COMMIT_ID: "6f29f12e82a8293156836ad81cc9bf5af41fe836" # 2025.01.13, got "/opt/artifacts/vcpkg/vcpkg: No such file or directory" with latest version
-  VERSION: "1.5.25"
+  VERSION: "1.5.26"
   NDK_VERSION: "r28c"
   #signing keys env variable checks
   UPLOAD_ARTIFACT: "${{ inputs.upload-artifact }}"
@@ -1173,6 +1173,9 @@ jobs:
         if: env.UPLOAD_ARTIFACT == 'true'
         run: |
           APP="./flutter/build/macos/Build/Products/Release/Ecletica Connect.app"
+          # AGPL-3.0: licenca e avisos legais vao dentro do app (antes de assinar).
+          cp LICENCE "$APP/Contents/Resources/LICENCE.txt"
+          cp AVISOS-LEGAIS.txt "$APP/Contents/Resources/AVISOS-LEGAIS.txt"
           # build.py renomeia o executavel e adiciona o binario 'service' DEPOIS de o
           # Xcode assinar, o que invalida o selo ad-hoc ("a sealed resource is missing
           # or invalid"). Com o selo invalido + hardened runtime, o macOS nao honra a
@@ -1256,6 +1259,7 @@ jobs:
         with:
           prerelease: true
           tag_name: ${{ env.TAG_NAME }}
+          target_commitish: ${{ github.sha }}
           files: |
             Ecletica-*.dmg
 
