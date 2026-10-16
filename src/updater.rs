@@ -190,6 +190,10 @@ fn check_update(manually: bool) -> ResultType<()> {
     // nunca baixava a versao nova. Sem a chave, o caminho do MSI e o seguro: roda
     // pelo msiexec, que funciona mesmo quando o motor esta no servico (conta SYSTEM).
     let update_msi = crate::platform::is_msi_installed().unwrap_or(true);
+    // Ecletica: o cliente 32 bits (Sciter) nunca e instalado por MSI; ele se atualiza
+    // pelo proprio executavel (rustdesk-<versao>-x86-sciter.exe).
+    #[cfg(target_os = "windows")]
+    let update_msi = update_msi && cfg!(feature = "flutter");
     // Build Ecletica: sem valor gravado no arquivo de configuracao, a atualizacao
     // automatica vale como ligada (o usuario pode desligar em Ajustes).
     let auto_update_ligado = config::Config::get_option(keys::OPTION_ALLOW_AUTO_UPDATE) != "N";

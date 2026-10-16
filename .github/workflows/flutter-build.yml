@@ -48,7 +48,7 @@ env:
   VCPKG_COMMIT_ID: "9e593bb18ea69cc5095e012465dcd675a822ed0d"
   VCPKG_CMAKE_VERSION: "4.3.0"
   ARMV7_VCPKG_COMMIT_ID: "6f29f12e82a8293156836ad81cc9bf5af41fe836" # 2025.01.13, got "/opt/artifacts/vcpkg/vcpkg: No such file or directory" with latest version
-  VERSION: "1.5.22"
+  VERSION: "1.5.23"
   NDK_VERSION: "r28c"
   #signing keys env variable checks
   UPLOAD_ARTIFACT: "${{ inputs.upload-artifact }}"
@@ -481,7 +481,12 @@ jobs:
           VIAddVersionKey "CompanyName" "Eclética Tecnologia Ltda."
           VIAddVersionKey "LegalCopyright" "Baseado no RustDesk © Purslane Tech Pte. Ltd. e colaboradores. Modificações © 2026 Eclética Tecnologia Ltda. Licença AGPL-3.0."
           !include "LogicLib.nsh"
+          !include "x64.nsh"
           Section "Instalar"
+            ${If} ${IsNativeIA32}
+              MessageBox MB_ICONSTOP "Este instalador é só para Windows 64 bits.$\r$\nNo Windows 32 bits, use o Ecletica-Connect-Setup-Windows.exe."
+              Abort
+            ${EndIf}
             SetOutPath "$PLUGINSDIR"
             File "${PACOTE}"
             ExecWait '"$SYSDIR\msiexec.exe" /i "$PLUGINSDIR\${PACOTE}" /passive' $0
@@ -491,7 +496,7 @@ jobs:
             ${ElseIf} $0 == 1602
               ; cancelado pelo usuario: nao avisar nada
             ${ElseIf} $0 != 0
-              MessageBox MB_ICONSTOP "A instalacao terminou com o codigo $0. Anote este numero e avise o suporte."
+              MessageBox MB_ICONSTOP "A instalação terminou com o código $0. Anote este número e avise o suporte."
             ${EndIf}
           SectionEnd
           NSI
@@ -787,6 +792,17 @@ jobs:
         shell: bash
         run: |
           BASE_URL=${{ env.SIGN_BASE_URL }} SECRET_KEY=${{ secrets.SIGN_SECRET_KEY }} python3 res/job.py sign_files ./SignOutput/
+
+      - name: Publish versao para o atualizador (32 bits)
+        # O cliente 32 bits baixa rustdesk-<versao>-x86-sciter.exe da release com o numero da versao.
+        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
+        if: env.UPLOAD_ARTIFACT == 'true'
+        with:
+          prerelease: true
+          make_latest: false
+          tag_name: ${{ env.VERSION }}
+          target_commitish: ${{ github.sha }}
+          files: ./SignOutput/rustdesk-${{ env.VERSION }}-x86-sciter.exe
 
       - name: Publish Release
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
