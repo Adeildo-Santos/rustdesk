@@ -1,8 +1,9 @@
 ﻿; Instalador unico do Ecletica Connect (Windows 32 e 64 bits).
 ; Compilado pelo job "instalador-unico" do flutter-build.yml:
 ;   makensis -DVERSAO=1.2.3 -DMSI64=<msi x64> -DEXE32=<exe x86 sciter> -DSAIDA=<saida> instalador.nsi
-; Mostra a licenca (AVISOS-LEGAIS + AGPL), depois instala o MSI no Windows 64 bits
-; ou o cliente Sciter no Windows 32 bits.
+; Instalacao silenciosa: so o pedido de permissao do Windows; instala o MSI no Windows
+; 64 bits ou o cliente Sciter no Windows 32 bits. A licenca vai instalada com o programa
+; (LICENCE.txt e AVISOS-LEGAIS.txt) e aparece no "Sobre".
 Unicode true
 !define PRODUTO "Eclética Connect"
 !define EMPRESA "Eclética Tecnologia Ltda."
@@ -11,6 +12,7 @@ Name "${PRODUTO}"
 OutFile "${SAIDA}"
 Icon "app_icon.ico"
 RequestExecutionLevel admin
+SilentInstall silent
 SetCompressor /SOLID lzma
 ShowInstDetails nevershow
 
@@ -22,16 +24,8 @@ VIAddVersionKey "FileVersion" "${VERSAO}"
 VIAddVersionKey "CompanyName" "${EMPRESA}"
 VIAddVersionKey "LegalCopyright" "Baseado no RustDesk © Purslane Tech Pte. Ltd. e colaboradores. Modificações © 2026 Eclética Tecnologia Ltda. Licença AGPL-3.0."
 
-!include "MUI2.nsh"
 !include "LogicLib.nsh"
 !include "x64.nsh"
-
-!define MUI_ICON "app_icon.ico"
-!define MUI_LICENSEPAGE_TEXT_TOP "Leia os avisos legais e a licença do software."
-!define MUI_LICENSEPAGE_BUTTON "Instalar"
-!insertmacro MUI_PAGE_LICENSE "LICENCA.txt"
-!insertmacro MUI_PAGE_INSTFILES
-!insertmacro MUI_LANGUAGE "PortugueseBR"
 
 Section "Instalar"
   InitPluginsDir
@@ -39,7 +33,7 @@ Section "Instalar"
   ${If} ${RunningX64}
     DetailPrint "Instalando a versão 64 bits..."
     File "${MSI64}"
-    ExecWait '"$SYSDIR\msiexec.exe" /i "$PLUGINSDIR\${MSI64}" /passive' $0
+    ExecWait '"$SYSDIR\msiexec.exe" /i "$PLUGINSDIR\${MSI64}" /qn /norestart' $0
   ${Else}
     DetailPrint "Instalando a versão 32 bits..."
     File "${EXE32}"

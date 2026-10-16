@@ -838,7 +838,6 @@ jobs:
           mv "rustdesk-${{ env.VERSION }}-x86-sciter.exe" Ecletica-Connect-Windows-x86.exe
           cp ../flutter/windows/runner/resources/app_icon.ico .
           cp ../res/ecletica/instalador.nsi .
-          { printf '\xEF\xBB\xBF'; cat ../AVISOS-LEGAIS.txt; printf '\r\n\r\n'; cat ../LICENCE; } > LICENCA.txt
           ls -la
 
       - name: Compila o instalador

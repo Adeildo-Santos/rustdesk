@@ -122,8 +122,11 @@ checar("32 bits empacotado como 'Ecletica Connect.exe' (bug: instalava rustdesk.
        and contem(WORKFLOW, '-e "../../Release/Ecletica Connect.exe"'))
 checar("instalador unico apaga o rustdesk.exe deixado pela 1.5.24",
        contem("res/ecletica/instalador.nsi", 'Delete "$PROGRAMFILES\\Ecletica Connect\\rustdesk.exe"'))
-checar("instalador unico escolhe 64/32 bits e mostra a licenca",
-       contem("res/ecletica/instalador.nsi", "${RunningX64}") and contem("res/ecletica/instalador.nsi", "MUI_PAGE_LICENSE"))
+checar("instalador unico escolhe 64/32 bits", contem("res/ecletica/instalador.nsi", "${RunningX64}"))
+checar("instalador unico silencioso (bug: passou a pedir cliques e mostrar telas)",
+       contem("res/ecletica/instalador.nsi", "SilentInstall silent")
+       and contem("res/ecletica/instalador.nsi", "/qn /norestart")
+       and "MUI_PAGE" not in ler("res/ecletica/instalador.nsi"))
 checar("instalador so 64 bits avisa no Windows 32 bits (bug: erro 1633)",
        contem(WORKFLOW, "${IsNativeIA32}"))
 checar("acentos corretos nos instaladores NSIS (BOM UTF-8; bug: 'EclÃ©tica')",
