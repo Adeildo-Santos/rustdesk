@@ -20,7 +20,7 @@ VIAddVersionKey "ProductVersion" "${VERSAO}"
 VIAddVersionKey "FileDescription" "Instalador do ${PRODUTO}"
 VIAddVersionKey "FileVersion" "${VERSAO}"
 VIAddVersionKey "CompanyName" "${EMPRESA}"
-VIAddVersionKey "LegalCopyright" "Baseado no RustDesk © Purslane Tech Pte. Ltd. e colaboradores. Modificações © 2026 ${EMPRESA}. Licença AGPL-3.0."
+VIAddVersionKey "LegalCopyright" "Baseado no RustDesk © Purslane Tech Pte. Ltd. e colaboradores. Modificações © 2026 Eclética Tecnologia Ltda. Licença AGPL-3.0."
 
 !include "MUI2.nsh"
 !include "LogicLib.nsh"
