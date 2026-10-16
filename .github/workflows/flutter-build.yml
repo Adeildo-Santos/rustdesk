@@ -594,10 +594,12 @@ jobs:
 
   # The fallback for the flutter version, we use Sciter for 32bit Windows.
   build-for-windows-sciter:
-    if: false
+    # Ecletica: este e' o cliente 32 bits (interface Sciter) - o mesmo caminho do
+    # rustdesk-<versao>-x86-sciter.exe oficial. Estava desligado ("temporarily disable").
+    # Liga pelo campo "somente" (windows ou todos).
+    if: ${{ inputs.somente == 'windows' || inputs.somente == 'todos' }}
     name: ${{ matrix.job.target }} (${{ matrix.job.os }})
     runs-on: ${{ matrix.job.os }}
-    # Temporarily disable this action due to additional test is needed.
     # if: false
     strategy:
       fail-fast: false
