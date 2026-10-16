@@ -586,7 +586,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           ANTIGOS="$(gh release view "${{ env.TAG_NAME }}" --json assets -q '.assets[].name' \
-            | grep -E '^rustdesk-${{ env.VERSION }}.*\.(msi|exe|dmg)$' || true)"
+            | grep -E '^rustdesk-${{ env.VERSION }}.*\.(msi|exe|dmg)$' \
+            | grep -v -- '-sciter\.exe$' || true)"
           [ -z "$ANTIGOS" ] && { echo "nada para remover"; exit 0; }
           for n in $ANTIGOS; do
             gh release delete-asset "${{ env.TAG_NAME }}" "$n" --yes && echo "removido: $n"
