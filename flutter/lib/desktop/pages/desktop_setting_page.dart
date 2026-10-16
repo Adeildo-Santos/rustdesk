@@ -2554,7 +2554,7 @@ class _AboutState extends State<_About> {
                       .marginSymmetric(vertical: 4.0)),
               InkWell(
                   onTap: () {
-                    launchUrlString('https://rustdesk.com/privacy.html');
+                    launchUrlString('https://www.ecletica.com.br');
                   },
                   child: Text(
                     translate('Privacy Statement'),
@@ -2562,10 +2562,28 @@ class _AboutState extends State<_About> {
                   ).marginSymmetric(vertical: 4.0)),
               InkWell(
                   onTap: () {
-                    launchUrlString('https://rustdesk.com');
+                    launchUrlString('https://www.ecletica.com.br');
                   },
                   child: Text(
                     translate('Website'),
+                    style: linkStyle,
+                  ).marginSymmetric(vertical: 4.0)),
+              InkWell(
+                  onTap: () {
+                    launchUrlString(
+                        'https://github.com/Adeildo-Santos/rustdesk/releases');
+                  },
+                  child: Text(
+                    'Código-fonte (AGPL-3.0)',
+                    style: linkStyle,
+                  ).marginSymmetric(vertical: 4.0)),
+              InkWell(
+                  onTap: () {
+                    launchUrlString(
+                        'https://www.gnu.org/licenses/agpl-3.0.html');
+                  },
+                  child: Text(
+                    'Licença GNU AGPL-3.0',
                     style: linkStyle,
                   ).marginSymmetric(vertical: 4.0)),
               Container(
@@ -2580,7 +2598,10 @@ class _AboutState extends State<_About> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Copyright © ${DateTime.now().toString().substring(0, 4)} Purslane Tech Pte. Ltd.\n$license',
+                            'Eclética Connect é baseado no RustDesk.\n'
+                            'Copyright © Purslane Tech Pte. Ltd. e colaboradores do RustDesk.\n'
+                            'Modificações © 2026 Eclética Tecnologia Ltda.\n'
+                            'Software livre sob a licença GNU AGPL-3.0, sem nenhuma garantia.\n$license',
                             style: const TextStyle(color: Colors.white),
                           ),
                           Text(

@@ -931,6 +931,21 @@ def build_deb_from_folder(version, binary_folder, want_drm=False):
     os.chdir("..")
 
 
+def macos_app_name():
+    """Nome do bundle do app no macOS (PRODUCT_NAME do AppInfo.xcconfig)."""
+    raiz = os.path.dirname(os.path.abspath(__file__))
+    cfg = os.path.join(raiz, 'flutter', 'macos', 'Runner', 'Configs', 'AppInfo.xcconfig')
+    try:
+        with open(cfg, encoding='utf-8') as arquivo:
+            for linha in arquivo:
+                chave, _, valor = linha.partition('=')
+                if chave.strip() == 'PRODUCT_NAME':
+                    return valor.strip()
+    except OSError:
+        pass
+    return 'RustDesk'
+
+
 def build_flutter_dmg(version, features):
     if not skip_cargo:
         # set minimum osx build target, now is 10.14, which is the same as the flutter xcode project
@@ -946,7 +961,8 @@ def build_flutter_dmg(version, features):
     mac_arch = 'arm64' if platform.machine().lower() in ('arm64', 'aarch64') else 'x86_64'
     system2(
         f'FLUTTER_XCODE_ARCHS={mac_arch} FLUTTER_XCODE_ONLY_ACTIVE_ARCH=YES flutter build macos --release')
-    system2('cp -rf ../target/release/service ./build/macos/Build/Products/Release/RustDesk.app/Contents/MacOS/')
+    system2(
+        f'cp -rf ../target/release/service "./build/macos/Build/Products/Release/{macos_app_name()}.app/Contents/MacOS/"')
     '''
     system2(
         "create-dmg --volname \"RustDesk Installer\" --window-pos 200 120 --window-size 800 400 --icon-size 100 --app-drop-link 600 185 --icon RustDesk.app 200 190 --hide-extension RustDesk.app rustdesk.dmg ./build/macos/Build/Products/Release/RustDesk.app")

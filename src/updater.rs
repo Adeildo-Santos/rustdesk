@@ -71,8 +71,10 @@ static CONTROLLING_SESSION_COUNT: AtomicUsize = AtomicUsize::new(0);
 /// Initial wait after startup before the first update check (30 seconds).
 pub const INITIAL_CHECK_DELAY: Duration = Duration::from_secs(30);
 
-/// One full day — default interval between update checks.
-pub const DUR_ONE_DAY: Duration = Duration::from_secs(60 * 60 * 24);
+/// Interval between automatic update checks in both schedulers (Ecletica):
+/// 10 minutes. The upstream default of one full day was too slow to reach the
+/// stores with a new version; the brake is the version file on the server.
+pub const AUTO_CHECK_INTERVAL: Duration = Duration::from_secs(60 * 10);
 
 /// Minimum interval between consecutive update checks (10 minutes).
 pub const MIN_INTERVAL: Duration = Duration::from_secs(60 * 10);
@@ -86,6 +88,7 @@ pub fn update_controlling_session_count(count: usize) {
 
 #[allow(dead_code)]
 pub fn start_auto_update() {
+    log::info!("Ecletica atualizacao: motor ligado neste processo (primeira verificacao em 30s)");
     let _sender = TX_MSG.lock().unwrap();
 }
 
@@ -141,12 +144,13 @@ fn start_auto_update_check() -> Sender<UpdateMsg> {
 
 fn start_auto_update_check_(rx_msg: Receiver<UpdateMsg>) {
     std::thread::sleep(INITIAL_CHECK_DELAY);
+    log::info!("Ecletica atualizacao: fio do motor acordou, verificando agora");
     if let Err(e) = check_update(false) {
         log::error!("Error checking for updates: {}", e);
     }
 
     let mut last_check_time = Instant::now();
-    let mut check_interval = DUR_ONE_DAY;
+    let mut check_interval = AUTO_CHECK_INTERVAL;
     loop {
         let recv_res = rx_msg.recv_timeout(check_interval);
         match &recv_res {
@@ -165,7 +169,7 @@ fn start_auto_update_check_(rx_msg: Receiver<UpdateMsg>) {
                     check_interval = RETRY_INTERVAL;
                 } else {
                     last_check_time = Instant::now();
-                    check_interval = DUR_ONE_DAY;
+                    check_interval = AUTO_CHECK_INTERVAL;
                 }
             }
             Ok(UpdateMsg::Exit) => break,
@@ -181,8 +185,32 @@ fn check_update(manually: bool) -> ResultType<()> {
         return Ok(());
     }
     #[cfg(target_os = "windows")]
-    let update_msi = crate::platform::is_msi_installed()? && !crate::is_custom_client();
-    if !(manually || config::Config::get_bool_option(keys::OPTION_ALLOW_AUTO_UPDATE)) {
+    // Ecletica: instalacao feita fora do MSI nao cria a chave do registro, e
+    // is_msi_installed() devolvia erro; o "?" abortava a verificacao inteira e o app
+    // nunca baixava a versao nova. Sem a chave, o caminho do MSI e o seguro: roda
+    // pelo msiexec, que funciona mesmo quando o motor esta no servico (conta SYSTEM).
+    let update_msi = crate::platform::is_msi_installed().unwrap_or(true);
+    // Ecletica: o cliente 32 bits (Sciter) nunca e instalado por MSI; ele se atualiza
+    // pelo proprio executavel (rustdesk-<versao>-x86-sciter.exe).
+    #[cfg(target_os = "windows")]
+    let update_msi = update_msi && cfg!(feature = "flutter");
+    // Build Ecletica: sem valor gravado no arquivo de configuracao, a atualizacao
+    // automatica vale como ligada (o usuario pode desligar em Ajustes).
+    let auto_update_ligado = config::Config::get_option(keys::OPTION_ALLOW_AUTO_UPDATE) != "N";
+    // Build Ecletica: registro de cada passo da atualizacao. Antes, quando a
+    // condicao falhava, o motor saia em silencio e nao havia como saber onde parou.
+    #[cfg(target_os = "windows")]
+    log::info!(
+        "Ecletica atualizacao: manual={manually}, auto={auto_update_ligado}, msi={update_msi}, versao_atual={}",
+        crate::VERSION
+    );
+    #[cfg(not(target_os = "windows"))]
+    log::info!(
+        "Ecletica atualizacao: manual={manually}, auto={auto_update_ligado}, versao_atual={}",
+        crate::VERSION
+    );
+    if !(manually || auto_update_ligado) {
+        log::info!("Ecletica atualizacao: desligada na configuracao; saindo sem verificar");
         return Ok(());
     }
     if do_check_software_update().is_err() {
@@ -193,6 +221,10 @@ fn check_update(manually: bool) -> ResultType<()> {
     let update_url = crate::common::SOFTWARE_UPDATE_URL.lock().unwrap().clone();
     if update_url.is_empty() {
         log::debug!("No update available.");
+        log::info!(
+            "Ecletica atualizacao: servidor sem versao mais nova, nada a fazer (atual={})",
+            crate::VERSION
+        );
     } else {
         let download_url = update_url.replace("tag", "download");
         let version = download_url.split('/').last().unwrap_or_default();
@@ -215,6 +247,9 @@ fn check_update(manually: bool) -> ResultType<()> {
             format!("{}/rustdesk-{}-x86-sciter.exe", download_url, version)
         };
         log::debug!("New version available: {}", &version);
+        log::info!(
+            "Ecletica atualizacao: versao {version} encontrada no servidor; baixando {download_url}"
+        );
         let client = create_http_client_with_url_strict(&download_url)?;
         let Some(file_path) = get_download_file_from_url(&download_url) else {
             bail!("Failed to get the file path from the URL: {}", download_url);
@@ -260,6 +295,10 @@ fn check_update(manually: bool) -> ResultType<()> {
         if has_no_active_conns() {
             #[cfg(target_os = "windows")]
             update_new_version(update_msi, &version, &file_path);
+        } else {
+            log::info!(
+                "Ecletica atualizacao: {version} baixada, mas ha sessao ativa; instalando na proxima verificacao"
+            );
         }
     }
     Ok(())
@@ -376,8 +415,12 @@ pub fn get_update_download_file_from_url(url: &str) -> Option<PathBuf> {
     let tag = segments.next()?;
     let filename = segments.next()?;
 
-    if owner != "rustdesk"
-        || repo != "rustdesk"
+    // Build Ecletica: a release de atualizacao vive no nosso fork (Adeildo-Santos),
+    // nao no repositorio oficial — a trava original do upstream recusava o nosso
+    // endereco e abortava o download antes de comecar.
+    let nosso_repo = owner == crate::common::ECLETICA_RELEASE_OWNER
+        && repo == crate::common::ECLETICA_RELEASE_REPO;
+    if !(nosso_repo || (owner == "rustdesk" && repo == "rustdesk"))
         || releases != "releases"
         || download != "download"
         || tag.is_empty()
@@ -499,7 +542,7 @@ pub fn start_auto_update_macos() {
             log::info!("[root-update] Auto-update scheduler thread started.");
             std::thread::sleep(INITIAL_CHECK_DELAY);
             wait_for_failed_update_retry();
-            let mut interval = DUR_ONE_DAY;
+            let mut interval = AUTO_CHECK_INTERVAL;
             loop {
                 log::info!("[root-update] Running scheduled update check...");
                 let no_active_conns = has_no_active_conns_ipc();
@@ -515,7 +558,7 @@ pub fn start_auto_update_macos() {
                                 // failure interval until the new daemon replaces us.
                                 interval = RETRY_INTERVAL;
                             } else {
-                                interval = DUR_ONE_DAY;
+                                interval = AUTO_CHECK_INTERVAL;
                             }
                         }
                         Err(e) => {
@@ -536,14 +579,13 @@ pub fn start_auto_update_macos() {
 pub fn check_update_as_root() -> ResultType<bool> {
     let _update_lock = acquire_mac_update_lock()?;
     // Allow-auto-update setting
-    if !config::Config::get_bool_option(keys::OPTION_ALLOW_AUTO_UPDATE) {
+    // Build Ecletica: sem valor gravado, a atualizacao automatica vale como ligada.
+    if config::Config::get_option(keys::OPTION_ALLOW_AUTO_UPDATE) == "N" {
         log::info!("[root-update] Auto update is disabled, skipping.");
         return Ok(false);
     }
-    if crate::is_custom_client() {
-        log::info!("[root-update] Custom client detected, skipping stock update.");
-        return Ok(false);
-    }
+    // Build Ecletica: tambem atualizamos cliente com marca propria — a versao vem
+    // do nosso arquivo e o arquivo baixado vem da nossa release.
     // Clean up only old temp dirs from previous failed updates. The detached
     // installer keeps using its update directory after this process exits and
     // releases the advisory lock, so a newly-started daemon must not remove a

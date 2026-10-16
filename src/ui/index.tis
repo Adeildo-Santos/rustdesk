@@ -601,9 +601,15 @@ class MyIdMenu: Reactor.Component {
         msgbox("custom-nocancel-nook-hasclose", translate("About") + " " + name, "<div style='line-height: 2em'> \
             <div>Version: " + handler.get_version() + " \
             <div>Fingerprint: " + handler.get_fingerprint() + " \
-            <div .link .custom-event url='https://rustdesk.com/privacy.html'>" + translate("Privacy Statement") + "</div> \
-            <div .link .custom-event url='https://rustdesk.com'>" + translate("Website") + "</div> \
-	    <div style='background: #2c8cff; color: white; padding: 1em; margin-top: 1em;'>Copyright &copy; 2026 Purslane Tech Pte. Ltd.\
+            <div .link .custom-event url='https://www.ecletica.com.br'>" + translate("Privacy Statement") + "</div> \
+            <div .link .custom-event url='https://www.ecletica.com.br'>" + translate("Website") + "</div> \
+            <div .link .custom-event url='https://github.com/Adeildo-Santos/rustdesk/releases'>C&oacute;digo-fonte (AGPL-3.0)</div> \
+            <div .link .custom-event url='https://www.gnu.org/licenses/agpl-3.0.html'>Licen&ccedil;a GNU AGPL-3.0</div> \
+	    <div style='background: #2c8cff; color: white; padding: 1em; margin-top: 1em;'>Ecl&eacute;tica Connect &eacute; baseado no RustDesk.\
+            <br />Copyright &copy; Purslane Tech Pte. Ltd. e colaboradores do RustDesk.\
+            <br />Modifica&ccedil;&otilde;es &copy; 2026 Ecl&eacute;tica Tecnologia Ltda.\
+            <br />Software livre sob a licen&ccedil;a GNU AGPL-3.0, sem nenhuma garantia.\
+            <br />This Application uses Sciter Engine (<span .link .custom-event url='http://sciter.com/'>http://sciter.com/</span>), copyright Terra Informatica Software, Inc.\
             <br />" + handler.get_license() + " \
             <p style='font-weight: bold'>" + translate("Slogan_tip") + "</p>\
             </div>\
@@ -834,7 +840,7 @@ class UpdateMe: Reactor.Component {
     }
 
     event click $(#install-me) {
-        handler.open_url("https://rustdesk.com/download");
+        handler.open_url("https://github.com/Adeildo-Santos/rustdesk/releases");
         return;
         if (!is_win) {
             handler.open_url("https://rustdesk.com");

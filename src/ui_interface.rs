@@ -568,6 +568,12 @@ pub fn is_installed_lower_version() -> bool {
     #[cfg(windows)]
     {
         let b = crate::platform::windows::get_reg("BuildDate");
+        // Ecletica: instalacao feita fora do instalador oficial nao grava a chave
+        // BuildDate. Comparar com vazio acusava "versao instalada inferior" a cada
+        // abertura, reabrindo o aviso e o UAC sem necessidade.
+        if b.trim().is_empty() {
+            return false;
+        }
         return crate::BUILD_DATE.cmp(&b).is_gt();
     }
 }

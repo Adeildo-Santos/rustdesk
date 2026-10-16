@@ -280,8 +280,18 @@ impl RendezvousMediator {
         }
         crate::hbbs_http::sync::start();
         #[cfg(target_os = "windows")]
-        if crate::platform::is_installed() && crate::is_server() {
-            crate::updater::start_auto_update();
+        {
+            // Build Ecletica: registra o resultado da condicao que liga o motor de
+            // atualizacao. Sem este registro, quando ela falha o motor simplesmente
+            // nao existe e nao sobra nenhum sinal no log.
+            let instalado = crate::platform::is_installed();
+            let e_servidor = crate::is_server();
+            log::info!(
+                "Ecletica atualizacao: condicao do motor - instalado={instalado}, servidor={e_servidor}"
+            );
+            if instalado && e_servidor {
+                crate::updater::start_auto_update();
+            }
         }
         check_zombie();
         let server = new_server();
