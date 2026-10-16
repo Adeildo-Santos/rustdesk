@@ -2365,7 +2365,21 @@ pub fn rustdesk_interval(i: Interval) -> ThrottledInterval {
     ThrottledInterval::new(i)
 }
 
+// Ecletica: sem o "Desenvolvido por RustDesk" na tela inicial (os avisos de licenca
+// ficam no "Sobre") e sem "Somente visualizar" como padrao para novos computadores.
+fn apply_ecletica_settings() {
+    config::BUILTIN_SETTINGS
+        .write()
+        .unwrap()
+        .insert(keys::OPTION_HIDE_POWERED_BY_ME.to_owned(), "Y".to_owned());
+    config::OVERWRITE_DISPLAY_SETTINGS
+        .write()
+        .unwrap()
+        .insert(keys::OPTION_VIEW_ONLY.to_owned(), "N".to_owned());
+}
+
 pub fn load_custom_client() {
+    apply_ecletica_settings();
     #[cfg(debug_assertions)]
     if let Ok(data) = std::fs::read_to_string("./custom.txt") {
         read_custom_client(data.trim());

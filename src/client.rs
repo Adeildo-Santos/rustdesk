@@ -2974,7 +2974,13 @@ impl LoginConfigHandler {
 
         self.id = id;
         self.conn_type = conn_type;
-        let config = self.load_config();
+        let mut config = self.load_config();
+        // Ecletica: toda sessao comeca com controle; "Somente visualizar" vale so
+        // enquanto a sessao estiver aberta e nao trava o computador nas proximas.
+        if config.view_only.v {
+            config.view_only.v = false;
+            config.store(&self.id);
+        }
         self.remember = !config.password.is_empty();
         self.config = config;
 
