@@ -1,0 +1,52 @@
+ECLÉTICA CONNECT - AVISOS LEGAIS
+================================
+
+O Eclética Connect é uma versão modificada do RustDesk
+(https://github.com/rustdesk/rustdesk).
+
+  Copyright (C) Purslane Tech Pte. Ltd. e colaboradores do RustDesk.
+  Modificações: Copyright (C) 2026 Eclética Tecnologia Ltda.
+
+Este programa é software livre: você pode redistribuí-lo e/ou modificá-lo
+nos termos da GNU Affero General Public License, versão 3, publicada pela
+Free Software Foundation. O texto completo da licença está no arquivo
+LICENCE.txt, instalado junto com este arquivo, e em
+https://www.gnu.org/licenses/agpl-3.0.html.
+
+Este programa é distribuído na esperança de ser útil, mas SEM NENHUMA
+GARANTIA; sem mesmo a garantia implícita de COMERCIABILIDADE ou de
+ADEQUAÇÃO A UM PROPÓSITO ESPECÍFICO. Veja a licença para mais detalhes.
+
+O que a Eclética mudou
+----------------------
+Marca e ícones, servidores de conexão e de atualização, nome do produto,
+instalador e ajustes de funcionamento para Windows e macOS. Cada mudança,
+com data e autor, está no histórico do repositório abaixo.
+
+Código-fonte
+------------
+O código-fonte completo e correspondente de cada versão distribuída, com
+os scripts de compilação e de instalação, está disponível sem custo em:
+
+  https://github.com/Adeildo-Santos/rustdesk/releases
+  (cada versão tem a sua página, com o código-fonte daquela versão)
+
+Marcas
+------
+"RustDesk" é marca do seu titular. O Eclética Connect não é um produto
+oficial do RustDesk nem é endossado pela Purslane Tech Pte. Ltd. O nome
+RustDesk aparece aqui apenas para indicar a origem do software.
+
+Componentes de terceiros
+------------------------
+- Versão 32 bits: This Application uses Sciter Engine (http://sciter.com/),
+  copyright Terra Informatica Software, Inc.
+- Demais bibliotecas de código aberto usadas pelo RustDesk (Flutter, FFmpeg,
+  libvpx, libyuv, opus, libjpeg-turbo, crates Rust, entre outras) seguem as
+  suas próprias licenças, listadas no código-fonte (Cargo.lock,
+  flutter/pubspec.lock e vcpkg.json).
+
+Uso indevido
+------------
+É proibido usar este software para acessar computadores sem a autorização
+do responsável por eles.

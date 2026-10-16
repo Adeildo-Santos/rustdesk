@@ -36,7 +36,7 @@ class SettingsPage extends StatefulWidget implements PageShape {
   State<SettingsPage> createState() => _SettingsState();
 }
 
-const url = 'https://rustdesk.com/';
+const url = 'https://www.ecletica.com.br';
 
 enum KeepScreenOn {
   never,
@@ -1030,12 +1030,24 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
                 title: Text(translate("Version: ") + version),
                 value: Padding(
                   padding: EdgeInsets.symmetric(vertical: 8),
-                  child: Text('rustdesk.com',
+                  child: Text('ecletica.com.br',
                       style: TextStyle(
                         decoration: TextDecoration.underline,
                       )),
                 ),
                 leading: Icon(Icons.info)),
+            SettingsTile(
+                onPressed: (context) async {
+                  await launchUrl(Uri.parse(
+                      'https://github.com/Adeildo-Santos/rustdesk/releases'));
+                },
+                title: Text('Código-fonte (AGPL-3.0)'),
+                value: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                      'Baseado no RustDesk. Copyright © Purslane Tech Pte. Ltd. e colaboradores. Modificações © 2026 Eclética Tecnologia Ltda. Sem nenhuma garantia.'),
+                ),
+                leading: Icon(Icons.gavel)),
             SettingsTile(
                 title: Text(translate("Build Date")),
                 value: Padding(
