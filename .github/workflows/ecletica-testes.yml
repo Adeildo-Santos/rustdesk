@@ -1,0 +1,19 @@
+name: Ecletica - testes de regressao
+
+# Roda a cada push nas branches da Eclética e em pull requests: confere em segundos
+# que nenhum bug ja corrigido voltou (marca, licenca, instalador, atualizacao, sessao).
+on:
+  push:
+    branches:
+      - conformidade-agpl
+      - "ecletica*"
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  testes-fonte:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Regressoes do codigo-fonte
+        run: python3 res/ecletica/testes/validar_fonte.py

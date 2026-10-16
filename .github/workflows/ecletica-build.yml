@@ -29,10 +29,50 @@ permissions:
   contents: write
 
 jobs:
+  # Testes de regressao do codigo (segundos): se algum bug ja corrigido voltar, nem compila.
+  testes-fonte:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Regressoes do codigo-fonte
+        run: python3 res/ecletica/testes/validar_fonte.py
+
   build-clientes:
+    needs: testes-fonte
     uses: ./.github/workflows/flutter-build.yml
     secrets: inherit
     with:
       upload-artifact: true
       upload-tag: ${{ github.event.inputs.tag || 'ecletica' }}
       somente: ${{ github.event.inputs.somente || 'todos' }}
+
+  # Testes de regressao dos pacotes: abre o instalador e os DMGs publicados e confere
+  # o que o usuario recebe (nome, versao, servico, licenca, assinatura, atualizador).
+  testes-pacotes:
+    needs: build-clientes
+    if: ${{ !cancelled() && (github.event.inputs.somente || 'todos') != 'android' }}
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Ferramentas
+        run: |
+          brew install sevenzip msitools
+          python3 -m pip install --break-system-packages pefile
+      - name: Baixa os pacotes do Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p pacotes
+          gh release download "${{ github.event.inputs.tag || 'ecletica' }}" -R "${{ github.repository }}" -D pacotes \
+            -p "Ecletica-Connect-Setup-Windows.exe" -p "Ecletica-Connect-macOS-*.dmg" || true
+          ls -la pacotes
+      - name: Regressoes dos pacotes
+        run: |
+          VERSAO=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+          case "${{ github.event.inputs.somente || 'todos' }}" in
+            windows) PLAT=windows ;;
+            mac) PLAT=mac ;;
+            *) PLAT=windows,mac ;;
+          esac
+          python3 res/ecletica/testes/validar_pacotes.py --versao "$VERSAO" --pasta pacotes \
+            --repo "${{ github.repository }}" --plataformas "$PLAT"
