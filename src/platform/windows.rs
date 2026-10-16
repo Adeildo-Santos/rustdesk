@@ -958,9 +958,9 @@ sc start {app_name}
     // neither in PATH nor near the current executable" (maquina de 32 bits, 15/10/2026).
     // Nada e' apagado: so acrescenta arquivos.
     {
-        let origem = std::path::Path::new(&src_exe)
-            .parent()
-            .map(|p| p.to_path_buf());
+        let origem = std::env::current_exe()
+            .ok()
+            .and_then(|c| c.parent().map(|p| p.to_path_buf()));
         let destino = std::path::Path::new(&exe).parent().map(|p| p.to_path_buf());
         if let (Some(origem), Some(destino)) = (origem, destino) {
             for nome in ["sciter.dll", "icon.ico", "ecletica-connect-3.ico"] {
