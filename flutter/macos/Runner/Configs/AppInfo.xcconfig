@@ -8,7 +8,7 @@
 PRODUCT_NAME = Ecletica Connect
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.carriez.flutterHbb
+PRODUCT_BUNDLE_IDENTIFIER = br.com.ecletica.connect
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 Eclética. Todos os direitos reservados.
+PRODUCT_COPYRIGHT = Baseado no RustDesk © Purslane Tech Pte. Ltd. e colaboradores. Modificações © 2026 Eclética Tecnologia Ltda. Licença AGPL-3.0.
