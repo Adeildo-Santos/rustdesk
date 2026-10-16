@@ -44,6 +44,8 @@ Section "Instalar"
     DetailPrint "Instalando a versão 32 bits..."
     File "${EXE32}"
     ExecWait '"$PLUGINSDIR\${EXE32}" --silent-install' $0
+    ; a 1.5.24 deixou um rustdesk.exe solto ao lado do Ecletica Connect.exe
+    Delete "$PROGRAMFILES\Ecletica Connect\rustdesk.exe"
   ${EndIf}
   ${If} $0 == 3010
     MessageBox MB_OK "${PRODUTO} foi instalado. Reinicie o Windows para concluir."
