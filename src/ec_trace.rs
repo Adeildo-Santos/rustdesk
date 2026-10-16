@@ -52,10 +52,10 @@ pub fn segura_copia_unica() -> bool {
     let porta: u16 = 42548;
     match std::net::TcpListener::bind(("127.0.0.1", porta)) {
         Ok(ouvinte) => {
-            // Mantem o ouvinte vivo enquanto o programa estiver rodando.
-            if let Ok(mut g) = TRAVA.lock() {
-                *g = Some(ouvinte);
-            }
+            // Deixa o ouvinte vivo enquanto o programa estiver rodando: e' de proposito
+            // que nao o devolvemos ao sistema (equivale a varavel global, sem precisar
+            // de `static`, que o compilador antigo do 32 bits nao aceita aqui).
+            std::mem::forget(ouvinte);
             true
         }
         Err(e) => {
@@ -72,6 +72,3 @@ pub fn segura_copia_unica() -> bool {
         }
     }
 }
-
-/// Guarda o ouvinte da trava (fica com o programa ate ele terminar).
-static TRAVA: std::sync::Mutex<Option<std::net::TcpListener>> = std::sync::Mutex::new(None);
