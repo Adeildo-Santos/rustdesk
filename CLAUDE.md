@@ -55,5 +55,10 @@ python3 res/ecletica/testes/validar_pacotes.py --versao 1.5.26 --pasta ./pacotes
   `python3 res/ecletica/gerar_licenca_rtf.py` para atualizar a tela de licença do MSI.
 - **Marca:** "RustDesk" só aparece como crédito ("baseado no RustDesk"), nunca como
   nome do produto, ícone, link de suporte ou nome de arquivo instalado.
-- **Releases:** mantenha só a versão atual (a do `rustdesk-versao.json` e a do
-  instalador distribuído) e apague as anteriores.
+- **Releases:** o build publica em dois Releases: `ecletica` (instaladores para
+  distribuir + `VERSION.txt`) e `<versão>` (arquivos que o atualizador baixa, com a tag
+  no commit compilado). Gere sempre com o campo `tag` vazio, para usar `ecletica`.
+  **Nunca apague o Release `ecletica`:** o servidor app.ecletico.ai lê o `VERSION.txt`
+  dele a cada 15 minutos para montar o `rustdesk-versao.json` (log em
+  `/var/log/rustdesk_versao.log`). Sem ele, os clientes param de se atualizar.
+  Os demais Releases e tags de versões antigas podem ser apagados.

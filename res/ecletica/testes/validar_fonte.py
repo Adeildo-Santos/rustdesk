@@ -147,6 +147,10 @@ checar("pasta de dados congelada (guarda ID e senha das maquinas)",
 checar("UpgradeCode do MSI congelado (atualiza por cima, sem instalar duplicado)",
        contem("res/msi/preprocess.py", 'UPGRADE_CODE_SEED = "RustDesk.exe"'))
 
+checar("build publica no Release 'ecletica', lido pelo servidor do rustdesk-versao.json",
+       contem(".github/workflows/ecletica-build.yml", "upload-tag: ${{ github.event.inputs.tag || 'ecletica' }}")
+       and contem(WORKFLOW, "./SignOutput/VERSION.txt"))
+
 print("Sessao remota")
 checar("'Somente visualizar' desligado por padrao (bug: Mac nao clicava nem digitava)",
        contem("src/common.rs", "keys::OPTION_VIEW_ONLY.to_owned(), \"N\""))
