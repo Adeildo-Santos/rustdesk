@@ -869,6 +869,21 @@ jobs:
           tag_name: ${{ env.TAG_NAME }}
           files: ./SignOutput/Ecletica-Connect-Setup-Windows.exe
 
+      - name: Release de distribuicao aponta para esta versao
+        # O Release fixo (ecletica) e' reaproveitado a cada versao: a tag dele passa a
+        # apontar para o commit compilado, o titulo diz a versao e saem arquivos de versoes antigas.
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          R="${{ github.repository }}"; T="${{ env.TAG_NAME }}"; V="${{ env.VERSION }}"
+          gh api -X PATCH "repos/$R/git/refs/tags/$T" -f sha="${{ github.sha }}" -F force=true > /dev/null
+          gh release edit "$T" -R "$R" --title "Eclética Connect $V" \
+            --notes "Instaladores atuais do Eclética Connect (Windows 32/64 bits e Mac). Código-fonte desta versão: tag $V."
+          for n in $(gh release view "$T" -R "$R" --json assets -q '.assets[].name' | grep -E '^rustdesk-[0-9]' | grep -v -- "-$V-"); do
+            gh release delete-asset "$T" "$n" -R "$R" --yes && echo "removido: $n"
+          done
+
   build-rustdesk-ios:
     if: false
     name: build rustdesk ios ipa
