@@ -151,6 +151,10 @@ checar("build publica no Release 'ecletica', lido pelo servidor do rustdesk-vers
        contem(".github/workflows/ecletica-build.yml", "upload-tag: ${{ github.event.inputs.tag || 'ecletica' }}")
        and contem(WORKFLOW, "./SignOutput/VERSION.txt"))
 
+checar("cliente informa a arquitetura no sysinfo (painel conta as maquinas 32 bits)",
+       contem("src/common.rs", 'os = format!("{os} - {}", ecletica_arquitetura());')
+       and contem("src/common.rs", '"32 bits"'))
+
 print("Sessao remota")
 checar("'Somente visualizar' desligado por padrao (bug: Mac nao clicava nem digitava)",
        contem("src/common.rs", "keys::OPTION_VIEW_ONLY.to_owned(), \"N\""))

@@ -951,6 +951,11 @@ pub fn get_sysinfo() -> serde_json::Value {
     {
         os = format!("{os} - {}", system.os_version().unwrap_or_default());
     }
+    // Ecletica: arquitetura do cliente no fim do sistema, para o painel contar o parque 32 bits.
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    {
+        os = format!("{os} - {}", ecletica_arquitetura());
+    }
     let hostname = hostname(); // sys.hostname() return localhost on android in my test
     #[cfg(any(target_os = "android", target_os = "ios"))]
     let out;
@@ -2363,6 +2368,18 @@ pub type RustDeskInterval = ThrottledInterval;
 #[inline]
 pub fn rustdesk_interval(i: Interval) -> ThrottledInterval {
     ThrottledInterval::new(i)
+}
+
+// Ecletica: rotulo da arquitetura deste executavel, enviado no campo "os" do sysinfo.
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+fn ecletica_arquitetura() -> &'static str {
+    if cfg!(target_arch = "x86") {
+        "32 bits"
+    } else if cfg!(target_arch = "aarch64") {
+        "ARM64"
+    } else {
+        "64 bits"
+    }
 }
 
 // Ecletica: sem o "Desenvolvido por RustDesk" na tela inicial (os avisos de licenca
