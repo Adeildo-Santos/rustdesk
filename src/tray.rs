@@ -45,13 +45,22 @@ fn make_tray() -> hbb_common::ResultType<()> {
     {
         icon = include_bytes!("../res/mac-tray-dark-x2.png"); // use as template, so color is not important
     }
-    #[cfg(not(target_os = "macos"))]
+    // Ecletica: no Windows a bandeja tem desenho proprio; os demais icones do app nao mudam.
+    #[cfg(windows)]
+    {
+        icon = include_bytes!("../res/tray-icon-windows.png");
+    }
+    #[cfg(not(any(target_os = "macos", windows)))]
     {
         icon = include_bytes!("../res/tray-icon.ico");
     }
 
     let (icon_rgba, icon_width, icon_height) = {
-        let image = load_icon_from_asset()
+        #[cfg(windows)]
+        let asset = None::<image::DynamicImage>;
+        #[cfg(not(windows))]
+        let asset = load_icon_from_asset();
+        let image = asset
             .unwrap_or(image::load_from_memory(icon).context("Failed to open icon path")?)
             .into_rgba8();
         let (width, height) = image.dimensions();
@@ -316,6 +325,7 @@ async fn start_query_session_count(sender: std::sync::mpsc::Sender<Data>) {
     }
 }
 
+#[cfg_attr(windows, allow(dead_code))]
 fn load_icon_from_asset() -> Option<image::DynamicImage> {
     let Some(path) = std::env::current_exe().map_or(None, |x| x.parent().map(|x| x.to_path_buf()))
     else {

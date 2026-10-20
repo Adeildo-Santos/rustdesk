@@ -158,6 +158,11 @@ checar("cliente informa a arquitetura no sysinfo (painel conta as maquinas 32 bi
 checar("Release 'ecletica' passa a apontar para o commit compilado a cada versao (bug: ficou na 1.5.27)",
        contem(WORKFLOW, 'gh api -X PATCH "repos/$R/git/refs/tags/$T" -f sha="${{ github.sha }}" -F force=true'))
 
+checar("bandeja do Windows com icone proprio (monitores com setas), sem usar o icon.png do app",
+       contem("src/tray.rs", 'icon = include_bytes!("../res/tray-icon-windows.png");')
+       and contem("src/tray.rs", "let asset = None::<image::DynamicImage>;")
+       and (RAIZ / "res/tray-icon-windows.png").is_file())
+
 print("Sessao remota")
 checar("'Somente visualizar' desligado por padrao (bug: Mac nao clicava nem digitava)",
        contem("src/common.rs", "keys::OPTION_VIEW_ONLY.to_owned(), \"N\""))
