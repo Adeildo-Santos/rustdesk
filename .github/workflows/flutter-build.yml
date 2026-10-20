@@ -48,7 +48,7 @@ env:
   VCPKG_COMMIT_ID: "9e593bb18ea69cc5095e012465dcd675a822ed0d"
   VCPKG_CMAKE_VERSION: "4.3.0"
   ARMV7_VCPKG_COMMIT_ID: "6f29f12e82a8293156836ad81cc9bf5af41fe836" # 2025.01.13, got "/opt/artifacts/vcpkg/vcpkg: No such file or directory" with latest version
-  VERSION: "1.5.29"
+  VERSION: "1.5.30"
   NDK_VERSION: "r28c"
   #signing keys env variable checks
   UPLOAD_ARTIFACT: "${{ inputs.upload-artifact }}"
@@ -596,15 +596,11 @@ jobs:
           BASE_URL=${{ env.SIGN_BASE_URL }} SECRET_KEY=${{ secrets.SIGN_SECRET_KEY }} python3 res/job.py sign_files ./SignOutput
 
       - name: Publish Release
-        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
         if: env.UPLOAD_ARTIFACT == 'true'
-        with:
-          prerelease: true
-          tag_name: ${{ env.TAG_NAME }}
-          files: |
-            ./SignOutput/Ecletica-*.msi
-            ./SignOutput/Ecletica-*.exe
-            ./SignOutput/VERSION.txt
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash ./res/ecletica/publicar_no_release.sh "${{ env.TAG_NAME }}" ./SignOutput/Ecletica-*.msi ./SignOutput/Ecletica-*.exe ./SignOutput/VERSION.txt
 
       - name: Remove os nomes antigos do Release
         # Depois que os arquivos com nome novo entraram, tiramos os antigos
@@ -806,13 +802,11 @@ jobs:
           files: ./SignOutput/rustdesk-${{ env.VERSION }}-x86-sciter.exe
 
       - name: Publish Release
-        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
         if: env.UPLOAD_ARTIFACT == 'true'
-        with:
-          prerelease: true
-          tag_name: ${{ env.TAG_NAME }}
-          files: |
-            ./SignOutput/rustdesk-*.exe
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash ./res/ecletica/publicar_no_release.sh "${{ env.TAG_NAME }}" ./SignOutput/rustdesk-*.exe
 
   # Ecletica: um so instalador para Windows 32 e 64 bits, com a tela de licenca.
   # Junta o MSI x64 e o cliente Sciter x86 que os dois jobs acima publicaram no Release.
@@ -863,11 +857,10 @@ jobs:
         run: ./res/ecletica/assinar.ps1 -Pastas ./SignOutput
 
       - name: Publica o instalador
-        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
-        with:
-          prerelease: true
-          tag_name: ${{ env.TAG_NAME }}
-          files: ./SignOutput/Ecletica-Connect-Setup-Windows.exe
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash ./res/ecletica/publicar_no_release.sh "${{ env.TAG_NAME }}" ./SignOutput/Ecletica-Connect-Setup-Windows.exe
 
       - name: Release de distribuicao aponta para esta versao
         # O Release fixo (ecletica) e' reaproveitado a cada versao: a tag dele passa a
@@ -1269,13 +1262,10 @@ jobs:
 
       - name: Publish DMG package
         if: env.UPLOAD_ARTIFACT == 'true'
-        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
-        with:
-          prerelease: true
-          tag_name: ${{ env.TAG_NAME }}
-          target_commitish: ${{ github.sha }}
-          files: |
-            Ecletica-*.dmg
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash ./res/ecletica/publicar_no_release.sh "${{ env.TAG_NAME }}" Ecletica-*.dmg
 
   publish_unsigned:
     needs:
@@ -1332,11 +1322,13 @@ jobs:
           tar czf rustdesk-${{ env.VERSION }}-unsigned.tar.gz *.dmg windows-x86_64 windows-aarch64 windows-x86 msi-template
 
       - name: Publish unsigned app
-        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
-        with:
-          prerelease: true
-          tag_name: ${{ env.TAG_NAME }}
-          files: rustdesk-${{ env.VERSION }}-unsigned.tar.gz
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view "${{ env.TAG_NAME }}" -R "$GITHUB_REPOSITORY" > /dev/null 2>&1 || \
+            gh release create "${{ env.TAG_NAME }}" -R "$GITHUB_REPOSITORY" --prerelease --target "$GITHUB_SHA" --title "${{ env.TAG_NAME }}" --notes "" || true
+          gh release upload "${{ env.TAG_NAME }}" rustdesk-${{ env.VERSION }}-unsigned.tar.gz -R "$GITHUB_REPOSITORY" --clobber
 
   build-rustdesk-android:
     # Ecletica: liga só quando pedido de proposito (Actions -> Run workflow -> somente = android).

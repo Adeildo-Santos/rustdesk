@@ -163,6 +163,10 @@ checar("bandeja do Windows com icone proprio (monitores com setas), sem usar o i
        and contem("src/tray.rs", "let asset = None::<image::DynamicImage>;")
        and (RAIZ / "res/tray-icon-windows.png").is_file())
 
+checar("Release 'ecletica' recebe arquivos pelo gh, nao pelo action-gh-release (bug: 'Resource not accessible by integration')",
+       ler(WORKFLOW).count('publicar_no_release.sh "${{ env.TAG_NAME }}"') == 4
+       and (RAIZ / "res/ecletica/publicar_no_release.sh").is_file())
+
 print("Sessao remota")
 checar("'Somente visualizar' desligado por padrao (bug: Mac nao clicava nem digitava)",
        contem("src/common.rs", "keys::OPTION_VIEW_ONLY.to_owned(), \"N\""))
