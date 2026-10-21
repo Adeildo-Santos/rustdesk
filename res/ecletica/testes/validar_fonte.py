@@ -162,6 +162,8 @@ checar("bandeja do Windows com icone proprio (monitores com setas), sem usar o i
        contem("src/tray.rs", 'icon = include_bytes!("../res/tray-icon-windows.png");')
        and contem("src/tray.rs", "let asset = None::<image::DynamicImage>;")
        and (RAIZ / "res/tray-icon-windows.png").is_file())
+checar("icone da bandeja do Windows com fundo claro, igual em tema claro e escuro (bug: sumia no tema escuro)",
+       sha("res/tray-icon-windows.png") != "4744f3fb4709")
 
 checar("Release 'ecletica' recebe arquivos pelo gh, nao pelo action-gh-release (bug: 'Resource not accessible by integration')",
        ler(WORKFLOW).count('publicar_no_release.sh "${{ env.TAG_NAME }}"') == 4
