@@ -169,6 +169,11 @@ checar("Release 'ecletica' recebe arquivos pelo gh, nao pelo action-gh-release (
        ler(WORKFLOW).count('publicar_no_release.sh "${{ env.TAG_NAME }}"') == 4
        and (RAIZ / "res/ecletica/publicar_no_release.sh").is_file())
 
+checar("bandeja do Windows: icone no tamanho exato do sistema e setas no tamanho maximo (bug: icone pequeno e borrado)",
+       contem("src/tray.rs", "let lado = ecletica_tamanho_bandeja();")
+       and contem("src/tray.rs", "SM_CXSMICON")
+       and (RAIZ / "res/tray-icon-windows.png").read_bytes()[16:24] == (256).to_bytes(4, "big") * 2)
+
 print("Sessao remota")
 checar("'Somente visualizar' desligado por padrao (bug: Mac nao clicava nem digitava)",
        contem("src/common.rs", "keys::OPTION_VIEW_ONLY.to_owned(), \"N\""))

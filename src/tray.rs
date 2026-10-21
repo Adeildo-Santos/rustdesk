@@ -63,6 +63,12 @@ fn make_tray() -> hbb_common::ResultType<()> {
         let image = asset
             .unwrap_or(image::load_from_memory(icon).context("Failed to open icon path")?)
             .into_rgba8();
+        // Ecletica: entrega o icone no tamanho exato da bandeja; reduzido pelo Windows ficava borrado.
+        #[cfg(windows)]
+        let image = {
+            let lado = ecletica_tamanho_bandeja();
+            image::imageops::resize(&image, lado, lado, image::imageops::FilterType::Lanczos3)
+        };
         let (width, height) = image.dimensions();
         let rgba = image.into_raw();
         (rgba, width, height)
@@ -322,6 +328,17 @@ async fn start_query_session_count(sender: std::sync::mpsc::Sender<Data>) {
             }
         }
         hbb_common::sleep(1.).await;
+    }
+}
+
+// Ecletica: lado do icone da bandeja no Windows (16 px a 100%, 20 a 125%, 24 a 150%, 32 a 200%).
+#[cfg(windows)]
+fn ecletica_tamanho_bandeja() -> u32 {
+    let lado = unsafe { winapi::um::winuser::GetSystemMetrics(winapi::um::winuser::SM_CXSMICON) };
+    if lado > 0 {
+        lado as u32
+    } else {
+        16
     }
 }
 
