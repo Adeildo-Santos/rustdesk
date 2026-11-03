@@ -141,6 +141,10 @@ checar("acentos corretos nos instaladores NSIS (BOM UTF-8; bug: 'EclÃ©tica')",
        and contem(WORKFLOW, "printf '\\xEF\\xBB\\xBF' > instalador.nsi"))
 checar("32 bits se atualiza pelo executavel, nao pelo MSI",
        contem("src/updater.rs", 'let update_msi = update_msi && cfg!(feature = "flutter");'))
+checar("Windows tenta atualizar 10 min depois de uma sessao, nao 30 (bug: analistas ficavam horas na versao antiga)",
+       contem("src/updater.rs", "if !has_no_active_conns() {\n                    check_interval = MIN_INTERVAL;"))
+checar("instalador do Windows roda os scripts numa pasta protegida, nao em System32 (correcao oficial #16554)",
+       (RAIZ / "src/platform/windows/installer_handoff/directory.rs").is_file())
 checar("arquivo do 32 bits publicado na release da versao (atualizador)",
        contem(WORKFLOW, "files: ./SignOutput/rustdesk-${{ env.VERSION }}-x86-sciter.exe"))
 win = ler("src/platform/windows.rs")

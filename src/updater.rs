@@ -160,8 +160,10 @@ fn start_auto_update_check_(rx_msg: Receiver<UpdateMsg>) {
                     continue;
                 }
                 // Don't check update if there are alive connections.
+                // Ecletica: try again in 10 min (as on macOS), not 30; analysts spend
+                // the day in sessions and stayed hours on the old version.
                 if !has_no_active_conns() {
-                    check_interval = RETRY_INTERVAL;
+                    check_interval = MIN_INTERVAL;
                     continue;
                 }
                 if let Err(e) = check_update(matches!(recv_res, Ok(UpdateMsg::CheckUpdate))) {
