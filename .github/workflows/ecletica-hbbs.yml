@@ -1,0 +1,71 @@
+name: Ecletica - hbbs (servidor de conexao)
+
+# Compila o hbbs do lejianwen/rustdesk-server com a mudanca da Ecletica (res/ecletica/servidor):
+# o servidor so aceita conexao de conta ativa no rustdesk-api. O binario sai no Release
+# "servidor-hbbs" deste repositorio, de onde o servidor da Ecletica baixa.
+# Codigo-fonte da versao em uso (AGPL): lejianwen/rustdesk-server no commit abaixo + esta pasta.
+on:
+  push:
+    branches:
+      - conformidade-agpl
+    paths:
+      - "res/ecletica/servidor/**"
+      - ".github/workflows/ecletica-hbbs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  HBBS_REPO: lejianwen/rustdesk-server
+  HBBS_COMMIT: fb8b5b9cf494d045f0feb370d83913b1a7506388
+  ALVO: x86_64-unknown-linux-musl
+
+jobs:
+  hbbs:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Codigo do servidor (versao fixada)
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          repository: ${{ env.HBBS_REPO }}
+          ref: ${{ env.HBBS_COMMIT }}
+          path: hbbs-src
+          submodules: recursive
+
+      - name: Aplica a mudanca da Ecletica
+        run: python3 res/ecletica/servidor/aplicar.py hbbs-src
+
+      - name: Rust
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup target add "$ALVO"
+
+      - name: Testes da conta ativa
+        working-directory: hbbs-src
+        run: cargo test --lib ecletica_conta -- --nocapture
+
+      - name: Compila o hbbs (Linux musl, para o container Alpine)
+        working-directory: hbbs-src
+        run: |
+          cargo install cross --locked --version 0.2.5
+          cross build --release --target "$ALVO" --bin hbbs
+          cp "target/$ALVO/release/hbbs" ../hbbs
+          cd ..
+          chmod 755 hbbs
+          sha256sum hbbs > hbbs.sha256
+          cat hbbs.sha256
+          ls -la hbbs
+
+      - name: Publica no Release servidor-hbbs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notas="hbbs do ${HBBS_REPO}@${HBBS_COMMIT} com res/ecletica/servidor (conta ativa no rustdesk-api). Commit deste repositorio: ${GITHUB_SHA}."
+          gh release view servidor-hbbs >/dev/null 2>&1 || \
+            gh release create servidor-hbbs --target "$GITHUB_SHA" --title "Servidor de conexao (hbbs) - Ecletica" --notes "$notas"
+          gh release edit servidor-hbbs --notes "$notas"
+          gh release upload servidor-hbbs hbbs hbbs.sha256 --clobber
