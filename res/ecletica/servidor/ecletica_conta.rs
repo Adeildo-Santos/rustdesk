@@ -11,7 +11,10 @@
 
 use hbb_common::{log, tokio::sync::Mutex};
 use once_cell::sync::Lazy;
-use sqlx::{sqlite::SqliteConnectOptions, ConnectOptions, Connection};
+use sqlx::{
+    sqlite::{SqliteConnectOptions, SqliteJournalMode},
+    ConnectOptions, Connection,
+};
 use std::{
     collections::HashMap,
     str::FromStr,
@@ -57,6 +60,9 @@ pub async fn ativa_em(banco: &str, token: &str) -> bool {
 async fn consultar(banco: &str, token: &str) -> Result<bool, sqlx::Error> {
     let mut opcoes = SqliteConnectOptions::from_str(&format!("sqlite://{}", banco))?
         .read_only(true)
+        // O sqlx 0.6 abre com journal_mode=WAL, que é uma escrita: num banco só leitura em modo
+        // "delete" (o do rustdesk-api) isso falhava e todo pedido era liberado.
+        .journal_mode(SqliteJournalMode::Delete)
         .busy_timeout(Duration::from_secs(2));
     opcoes.disable_statement_logging();
     let mut con = opcoes.connect().await?;
@@ -82,6 +88,9 @@ mod testes {
         let mut con = SqliteConnectOptions::from_str(&format!("sqlite://{}", caminho))
             .unwrap()
             .create_if_missing(true)
+            // Como o banco real do rustdesk-api (bug: abrir só leitura tentava passar para WAL
+            // e a conta bloqueada conectava).
+            .journal_mode(SqliteJournalMode::Delete)
             .connect()
             .await
             .unwrap();
