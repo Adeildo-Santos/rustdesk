@@ -2393,6 +2393,21 @@ fn apply_ecletica_settings() {
         .write()
         .unwrap()
         .insert(keys::OPTION_VIEW_ONLY.to_owned(), "N".to_owned());
+    // Sem a tela "Servidor ID/Relay" e com o nosso servidor fixo: o que o usuário gravar
+    // (na tela, importando configuração ou no arquivo) não troca o servidor.
+    config::BUILTIN_SETTINGS
+        .write()
+        .unwrap()
+        .insert(keys::OPTION_HIDE_SERVER_SETTINGS.to_owned(), "Y".to_owned());
+    let mut fixas = config::OVERWRITE_SETTINGS.write().unwrap();
+    for (chave, valor) in [
+        ("custom-rendezvous-server", config::RENDEZVOUS_SERVERS[0]),
+        ("relay-server", config::RENDEZVOUS_SERVERS[0]),
+        ("key", config::RS_PUB_KEY),
+        ("api-server", "https://app.ecletico.ai/rustdesk"),
+    ] {
+        fixas.insert(chave.to_owned(), valor.to_owned());
+    }
 }
 
 pub fn load_custom_client() {

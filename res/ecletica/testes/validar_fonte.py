@@ -104,6 +104,13 @@ checar("'Adicionar/remover programas' sem links do GitHub do RustDesk",
 checar("'Desenvolvido por RustDesk' oculto (hide-powered-by-me ligado no codigo)",
        contem("src/common.rs", "keys::OPTION_HIDE_POWERED_BY_ME.to_owned(), \"Y\"")
        and contem("src/common.rs", "    apply_ecletica_settings();"))
+checar("tela 'Servidor ID/Relay' escondida (usuario nao troca o servidor)",
+       contem("src/common.rs", "keys::OPTION_HIDE_SERVER_SETTINGS.to_owned(), \"Y\"")
+       and contem("src/ui/index.tis", 'get_builtin_option("hide-server-settings")'))
+checar("servidor, relay, chave e API fixos (ignora o que o usuario gravar)",
+       contem("src/common.rs", "config::OVERWRITE_SETTINGS.write()")
+       and all(contem("src/common.rs", '("%s", ' % k) for k in
+               ("custom-rendezvous-server", "relay-server", "key", "api-server")))
 checar("processo auxiliar sem o nome RustDesk (RuntimeBroker_ecletica.exe)",
        contem("src/privacy_mode/win_topmost_window.rs", '"RuntimeBroker_ecletica.exe"')
        and contem("libs/portable/src/main.rs", '"RuntimeBroker_ecletica.exe"', 2)
