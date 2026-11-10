@@ -46,10 +46,84 @@ jobs:
       upload-tag: ${{ github.event.inputs.tag || 'ecletica' }}
       somente: ${{ github.event.inputs.somente || 'todos' }}
 
+  # Atualizacao assinada (desde o RustDesk 1.5.3): o app so instala uma versao nova se o
+  # rustdesk-update.json do Release da versao estiver assinado com a chave da Ecletica
+  # (segredo RUSTDESK_UPDATE_ED25519_SEED) e os arquivos baterem com o tamanho e o sha256.
+  # Roda depois que todos os instaladores estao no Release; reassina se um build parcial
+  # (so mac ou so windows) trocar algum arquivo. A frota so ve a versao quando o portao abre.
+  assinar-atualizacao:
+    needs: build-clientes
+    if: ${{ !cancelled() && needs.build-clientes.result == 'success' && (github.event.inputs.somente || 'todos') != 'android' }}
+    runs-on: ubuntu-22.04
+    concurrency:
+      group: assinar-atualizacao
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Dependencias do assinador
+        run: 'python -m pip install --only-binary=:all: --require-hashes -r res/update/update_metadata_requirements.txt'
+      - name: Chave da Ecletica confere com a do app
+        env:
+          RUSTDESK_UPDATE_ED25519_SEED: ${{ secrets.RUSTDESK_UPDATE_ED25519_SEED }}
+          RUSTDESK_UPDATE_ED25519_PUBLIC_KEY: ${{ secrets.RUSTDESK_UPDATE_ED25519_PUBLIC_KEY }}
+        run: python res/update/generate_update_metadata.py check-key --rust-source src/update_metadata.rs
+      - name: Baixa os instaladores do Release da versao
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSAO=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+          echo "VERSAO=$VERSAO" >> "$GITHUB_ENV"
+          mkdir -p artefatos
+          gh release download "$VERSAO" -R "${{ github.repository }}" -D artefatos -p "rustdesk-$VERSAO-*"
+          ls -la artefatos
+      - name: Assina os metadados
+        env:
+          RUSTDESK_UPDATE_ED25519_SEED: ${{ secrets.RUSTDESK_UPDATE_ED25519_SEED }}
+        run: |
+          A=artefatos/rustdesk-$VERSAO
+          python res/update/generate_update_metadata.py sign \
+            --artifact windows x86_64 exe "$A-x86_64.exe" \
+            --artifact windows x86_64 msi "$A-x86_64.msi" \
+            --artifact windows aarch64 exe "$A-aarch64.exe" \
+            --artifact windows aarch64 msi "$A-aarch64.msi" \
+            --artifact windows x86 exe "$A-x86-sciter.exe" \
+            --artifact macos aarch64 dmg "$A-aarch64.dmg" \
+            --artifact macos x86_64 dmg "$A-x86_64.dmg" \
+            --version "$VERSAO" --release-id "$VERSAO" \
+            --package-id rustdesk \
+            --release-base-url "https://github.com/${{ github.repository }}/releases/download" \
+            --published-at "$(git log -1 --format=%cI)" \
+            --metadata-out ./rustdesk-update.json \
+            --signature-out ./rustdesk-update.json.sig
+      - name: Confere a assinatura com a chave publica
+        env:
+          RUSTDESK_UPDATE_ED25519_PUBLIC_KEY: ${{ secrets.RUSTDESK_UPDATE_ED25519_PUBLIC_KEY }}
+        run: |
+          A=artefatos/rustdesk-$VERSAO
+          python res/update/generate_update_metadata.py verify \
+            --metadata ./rustdesk-update.json --signature ./rustdesk-update.json.sig \
+            --artifact "$A-x86_64.exe" --artifact "$A-x86_64.msi" \
+            --artifact "$A-aarch64.exe" --artifact "$A-aarch64.msi" \
+            --artifact "$A-x86-sciter.exe" --artifact "$A-aarch64.dmg" --artifact "$A-x86_64.dmg" \
+            --version "$VERSAO" --release-id "$VERSAO" --package-id rustdesk \
+            --release-base-url "https://github.com/${{ github.repository }}/releases/download"
+      # A assinatura sobe antes do json: o app so procura a .sig depois de achar o json.
+      - name: Publica no Release da versao
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "$VERSAO" -R "${{ github.repository }}" --clobber ./rustdesk-update.json.sig
+          gh release upload "$VERSAO" -R "${{ github.repository }}" --clobber ./rustdesk-update.json
+
   # Testes de regressao dos pacotes: abre o instalador e os DMGs publicados e confere
   # o que o usuario recebe (nome, versao, servico, licenca, assinatura, atualizador).
   testes-pacotes:
-    needs: build-clientes
+    needs: [build-clientes, assinar-atualizacao]
     if: ${{ !cancelled() && (github.event.inputs.somente || 'todos') != 'android' }}
     runs-on: macos-15
     steps:

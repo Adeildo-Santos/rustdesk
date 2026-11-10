@@ -140,7 +140,7 @@ checar("acentos corretos nos instaladores NSIS (BOM UTF-8; bug: 'EclÃ©tica')",
        (RAIZ / "res/ecletica/instalador.nsi").read_bytes()[:3] == b"\xef\xbb\xbf"
        and contem(WORKFLOW, "printf '\\xEF\\xBB\\xBF' > instalador.nsi"))
 checar("32 bits se atualiza pelo executavel, nao pelo MSI",
-       contem("src/updater.rs", 'let update_msi = update_msi && cfg!(feature = "flutter");'))
+       contem("src/updater.rs", 'crate::platform::is_msi_installed().unwrap_or(true) && cfg!(feature = "flutter");'))
 checar("Windows tenta atualizar 10 min depois de uma sessao, nao 30 (bug: analistas ficavam horas na versao antiga)",
        contem("src/updater.rs", "if !has_no_active_conns() {\n                    check_interval = MIN_INTERVAL;"))
 checar("instalador do Windows roda os scripts numa pasta protegida, nao em System32 (correcao oficial #16554)",
@@ -190,6 +190,28 @@ checar("bandeja do Windows: icone no tamanho exato do sistema e setas no tamanho
 checar("build do Mac nao usa o runner macos-14, que o GitHub aposentou (bug: Apple Silicon cancelado na 1.5.35)",
        "os: macos-14," not in ler(WORKFLOW)
        and "runs-on: macos-14" not in ler(".github/workflows/ecletica-build.yml"))
+
+print("Atualizacao assinada (RustDesk 1.5.3)")
+checar("instalacao e atualizacao aceitam o nome com espaco 'Ecletica Connect' (bug: o 1.5.3 recusava)",
+       contem("src/platform/mod.rs", "byte == b'-' || byte == b'_' || byte == b' '"))
+checar("atualizacao so confia na chave da Ecletica",
+       contem("src/update_metadata.rs", 'key_id: "2026-ed25519-ecletica"')
+       and contem("res/update/generate_update_metadata.py", 'KEY_ID = "2026-ed25519-ecletica"'))
+checar("versao nova vem do nosso JSON e so do nosso GitHub (nunca do api.rustdesk.com)",
+       contem("src/common.rs", "let url = ECLETICA_VERSION_JSON.to_string();")
+       and contem("src/common.rs", "if *owner == ECLETICA_RELEASE_OWNER && *repo == ECLETICA_RELEASE_REPO")
+       and contem("src/updater/artifact.rs", "crate::common::ECLETICA_RELEASE_OWNER"))
+checar("build assina o rustdesk-update.json de cada versao",
+       contem(".github/workflows/ecletica-build.yml", "generate_update_metadata.py sign")
+       and contem(".github/workflows/ecletica-build.yml", "RUSTDESK_UPDATE_ED25519_SEED"))
+checar("Mac: atualizacao como root com caminhos entre aspas (bug: chmod e launchctl partiam 'Ecletica Connect')",
+       contem("src/platform/macos.rs", '! chmod -R go-w "{app_bundle}"; then')
+       and contem("src/platform/macos.rs", 'if ! launchctl load -w "{daemon_plist}" 2>/dev/null')
+       and contem("src/platform/macos.rs", '! launchctl bootstrap system "{daemon_plist}" 2>/dev/null'))
+checar("Mac: pasta temporaria da atualizacao entre aspas (o nome vira 'ecletica connect')",
+       contem("src/platform/privileges_scripts/update.scpt", 'mktemp -d \\"/tmp/.rustdeskupdate-verified.XXXXXX\\"'))
+checar("Windows: remover o servico com o nome entre aspas",
+       contem("src/platform/windows.rs", '"remove" => format!("sc stop \\"{app_name}\\"\\r\\nsc delete \\"{app_name}\\""),'))
 
 print("Sessao remota")
 checar("'Somente visualizar' desligado por padrao (bug: Mac nao clicava nem digitava)",

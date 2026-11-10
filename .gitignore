@@ -61,3 +61,5 @@ flutter/web/
 
 # Instrucoes locais da Eclética (nao publicar)
 CLAUDE.local.md
+# Local git worktrees
+.worktrees/
