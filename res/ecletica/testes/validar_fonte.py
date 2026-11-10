@@ -187,6 +187,10 @@ checar("bandeja do Windows: icone no tamanho exato do sistema e setas no tamanho
        and contem("src/tray.rs", "SM_CXSMICON")
        and (RAIZ / "res/tray-icon-windows.png").read_bytes()[16:24] == (256).to_bytes(4, "big") * 2)
 
+checar("build do Mac nao usa o runner macos-14, que o GitHub aposentou (bug: Apple Silicon cancelado na 1.5.35)",
+       "os: macos-14," not in ler(WORKFLOW)
+       and "runs-on: macos-14" not in ler(".github/workflows/ecletica-build.yml"))
+
 print("Sessao remota")
 checar("'Somente visualizar' desligado por padrao (bug: Mac nao clicava nem digitava)",
        contem("src/common.rs", "keys::OPTION_VIEW_ONLY.to_owned(), \"N\""))
