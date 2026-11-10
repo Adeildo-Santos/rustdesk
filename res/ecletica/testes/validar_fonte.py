@@ -175,6 +175,8 @@ checar("bandeja do Windows com icone proprio (monitores com setas), sem usar o i
        and (RAIZ / "res/tray-icon-windows.png").is_file())
 checar("icone da bandeja do Windows nao e o transparente que sumia na barra escura (selo azul Eclética com setas curvas brancas)",
        sha("res/tray-icon-windows.png") != "4744f3fb4709")
+checar("icone da bandeja do Windows e o escolhido em 10/11/2026 (fundo branco, setas Azul Principal #1E4598)",
+       sha("res/tray-icon-windows.png") == "b4441507613c")
 
 checar("Release 'ecletica' recebe arquivos pelo gh, nao pelo action-gh-release (bug: 'Resource not accessible by integration')",
        ler(WORKFLOW).count('publicar_no_release.sh "${{ env.TAG_NAME }}"') == 4
