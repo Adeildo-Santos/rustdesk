@@ -988,7 +988,7 @@ jobs:
           ./configure --host=arm-apple-darwin10 --prefix="$GITHUB_WORKSPACE/sodium-sim" --disable-shared --enable-static
           make -j"$(sysctl -n hw.ncpu)" install
           echo "SODIUM_LIB_DIR=$GITHUB_WORKSPACE/sodium-sim/lib" >> "$GITHUB_ENV"
-          echo "SODIUM_STATIC=1" >> "$GITHUB_ENV"
+          # sem SODIUM_STATIC: o libsodium-sys 0.2.7 recusa a variavel (estatico ja e o padrao)
 
       - name: Build rustdesk lib
         run: |
