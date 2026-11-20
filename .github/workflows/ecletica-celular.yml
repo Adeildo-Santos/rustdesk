@@ -18,8 +18,10 @@ jobs:
       - name: Regressoes do codigo-fonte
         run: python3 res/ecletica/testes/validar_fonte.py
 
+  # "[so-ios]" na mensagem do commit pula o Android; "[so-android]" pula o iPhone.
   android:
     needs: testes-fonte
+    if: ${{ !contains(github.event.head_commit.message, '[so-ios]') }}
     uses: ./.github/workflows/flutter-build.yml
     secrets: inherit
     with:
@@ -29,6 +31,7 @@ jobs:
 
   iphone:
     needs: testes-fonte
+    if: ${{ !contains(github.event.head_commit.message, '[so-android]') }}
     uses: ./.github/workflows/flutter-build.yml
     secrets: inherit
     with:

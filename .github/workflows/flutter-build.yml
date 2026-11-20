@@ -971,6 +971,25 @@ jobs:
           name: bridge-artifact
           path: ./
 
+      # Ecletica: o libsodium-sys 0.2.7 nao conhece o simulador em Apple Silicon
+      # ("Unknown iOS build target: aarch64-apple-ios-sim"); compila o libsodium a parte e
+      # entrega pronto pelo SODIUM_LIB_DIR.
+      - name: libsodium para o simulador
+        if: ${{ matrix.job.target == 'aarch64-apple-ios-sim' }}
+        shell: bash
+        run: |
+          curl -fsSL -o libsodium.tar.gz https://github.com/jedisct1/libsodium/releases/download/1.0.20-RELEASE/libsodium-1.0.20.tar.gz
+          shasum -a 256 libsodium.tar.gz
+          tar xzf libsodium.tar.gz
+          cd libsodium-1.0.20
+          SDK=$(xcrun --sdk iphonesimulator --show-sdk-path)
+          export CFLAGS="-O2 -arch arm64 -isysroot $SDK -mios-simulator-version-min=13.0"
+          export LDFLAGS="-arch arm64 -isysroot $SDK -mios-simulator-version-min=13.0"
+          ./configure --host=arm-apple-darwin10 --prefix="$GITHUB_WORKSPACE/sodium-sim" --disable-shared --enable-static
+          make -j"$(sysctl -n hw.ncpu)" install
+          echo "SODIUM_LIB_DIR=$GITHUB_WORKSPACE/sodium-sim/lib" >> "$GITHUB_ENV"
+          echo "SODIUM_STATIC=1" >> "$GITHUB_ENV"
+
       - name: Build rustdesk lib
         run: |
           rustup target add ${{ matrix.job.target }}
