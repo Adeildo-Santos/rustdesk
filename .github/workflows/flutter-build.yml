@@ -989,6 +989,10 @@ jobs:
           make -j"$(sysctl -n hw.ncpu)" install
           echo "SODIUM_LIB_DIR=$GITHUB_WORKSPACE/sodium-sim/lib" >> "$GITHUB_ENV"
           # sem SODIUM_STATIC: o libsodium-sys 0.2.7 recusa a variavel (estatico ja e o padrao)
+          # coreaudio-sys 0.2.15: o bindgen nao entende "aarch64-apple-ios-sim" e escolheria o SDK
+          # do aparelho; forca o alvo e o SDK do simulador.
+          echo "BINDGEN_EXTRA_CLANG_ARGS_aarch64_apple_ios_sim=--target=arm64-apple-ios13.0-simulator -isysroot $SDK" >> "$GITHUB_ENV"
+          echo "COREAUDIO_SDK_PATH=$SDK" >> "$GITHUB_ENV"
 
       - name: Build rustdesk lib
         run: |
