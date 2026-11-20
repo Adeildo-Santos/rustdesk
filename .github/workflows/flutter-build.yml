@@ -897,7 +897,7 @@ jobs:
           - {
               arch: aarch64,
               target: aarch64-apple-ios-sim,
-              os: macos-latest,
+              os: macos-15, # Ecletica: o macos-latest ficou sem vaga 3 vezes seguidas para este job
               vcpkg-triplet: arm64-ios-simulator,
             }
     steps:
