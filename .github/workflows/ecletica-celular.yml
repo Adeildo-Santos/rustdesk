@@ -1,0 +1,37 @@
+name: Ecletica - celular (iPhone e Android de teste)
+
+# Roda sozinho a cada push no ramo celular-lojas (o ecletica-build.yml segue desligado).
+# Nada vai para Release: o APK e os apps do iPhone ficam como artefatos do Actions.
+on:
+  push:
+    branches:
+      - celular-lojas
+
+permissions:
+  contents: write
+
+jobs:
+  testes-fonte:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Regressoes do codigo-fonte
+        run: python3 res/ecletica/testes/validar_fonte.py
+
+  android:
+    needs: testes-fonte
+    uses: ./.github/workflows/flutter-build.yml
+    secrets: inherit
+    with:
+      upload-artifact: true
+      upload-tag: teste
+      somente: android
+
+  iphone:
+    needs: testes-fonte
+    uses: ./.github/workflows/flutter-build.yml
+    secrets: inherit
+    with:
+      upload-artifact: true
+      upload-tag: teste
+      somente: ios
