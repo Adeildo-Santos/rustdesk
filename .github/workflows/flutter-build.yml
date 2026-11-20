@@ -878,8 +878,10 @@ jobs:
           done
 
   build-rustdesk-ios:
-    if: false
-    name: build rustdesk ios ipa
+    # Ecletica: liga só quando pedido (somente = ios). Gera a biblioteca Rust do iPhone
+    # (aparelho) e o app para o simulador; sem conta Apple ainda, nada é assinado nem publicado.
+    if: ${{ inputs.somente == 'ios' }}
+    name: build rustdesk ios ${{ matrix.job.target }}
     runs-on: ${{ matrix.job.os }}
     needs: [generate-bridge]
     strategy:
@@ -891,6 +893,12 @@ jobs:
               target: aarch64-apple-ios,
               os: macos-latest,
               vcpkg-triplet: arm64-ios,
+            }
+          - {
+              arch: aarch64,
+              target: aarch64-apple-ios-sim,
+              os: macos-latest,
+              vcpkg-triplet: arm64-ios-simulator,
             }
     steps:
       - name: Export GitHub Actions cache environment variables
@@ -966,21 +974,35 @@ jobs:
       - name: Build rustdesk lib
         run: |
           rustup target add ${{ matrix.job.target }}
-          cargo build --locked --features flutter,hwcodec --release --target aarch64-apple-ios --lib
-          
+          cargo build --locked --features flutter,hwcodec --release --target ${{ matrix.job.target }} --lib
+
       - name: Upload liblibrustdesk.a Artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: liblibrustdesk.a
-          path: target/aarch64-apple-ios/release/liblibrustdesk.a
+          name: liblibrustdesk-${{ matrix.job.target }}.a
+          path: target/${{ matrix.job.target }}/release/liblibrustdesk.a
 
       - name: Build rustdesk
         shell: bash
         run: |
           pushd flutter
-          # flutter build ipa --release --obfuscate --split-debug-info=./split-debug-info --no-codesign
-          # for easy debugging
-          flutter build ipa --release --no-codesign
+          if [[ "${{ matrix.job.target }}" == "aarch64-apple-ios-sim" ]]; then
+            flutter build ios --simulator --debug
+            PASTA=iphonesimulator
+          else
+            flutter build ios --release --no-codesign
+            PASTA=iphoneos
+          fi
+          popd
+          # Ecletica: o app montado vai como artefato (simulador: roda direto; aparelho: sem
+          # assinatura, só confere que compila; para o iPhone de verdade, assinar no Xcode).
+          ditto -c -k --keepParent "flutter/build/ios/$PASTA/Runner.app" "Ecletica-Connect-iOS-${{ matrix.job.target }}.zip"
+
+      - name: Upload app iOS
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: Ecletica-Connect-iOS-${{ matrix.job.target }}
+          path: Ecletica-Connect-iOS-${{ matrix.job.target }}.zip
 
       # - name: Upload Artifacts
       #   # if: env.ANDROID_SIGNING_KEY != null && env.UPLOAD_ARTIFACT == 'true'
@@ -1613,7 +1635,8 @@ jobs:
           path: ${{steps.sign-rustdesk.outputs.signedReleaseFile}}
 
       - name: Publish signed apk package
-        if: env.ANDROID_SIGNING_KEY != null && env.UPLOAD_ARTIFACT == 'true'
+        # Ecletica: tag "teste" fica só no artefato do Actions (não vai para Release nenhum).
+        if: env.ANDROID_SIGNING_KEY != null && env.UPLOAD_ARTIFACT == 'true' && env.TAG_NAME != 'teste'
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
         with:
           prerelease: true
@@ -1622,7 +1645,7 @@ jobs:
             ${{steps.sign-rustdesk.outputs.signedReleaseFile}}
 
       - name: Publish unsigned apk package
-        if: env.ANDROID_SIGNING_KEY == null && env.UPLOAD_ARTIFACT == 'true'
+        if: env.ANDROID_SIGNING_KEY == null && env.UPLOAD_ARTIFACT == 'true' && env.TAG_NAME != 'teste'
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
         with:
           prerelease: true
@@ -1798,7 +1821,8 @@ jobs:
           path: ${{steps.sign-rustdesk.outputs.signedReleaseFile}}
 
       - name: Publish signed apk package
-        if: env.ANDROID_SIGNING_KEY != null && env.UPLOAD_ARTIFACT == 'true'
+        # Ecletica: tag "teste" fica só no artefato do Actions (não vai para Release nenhum).
+        if: env.ANDROID_SIGNING_KEY != null && env.UPLOAD_ARTIFACT == 'true' && env.TAG_NAME != 'teste'
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
         with:
           prerelease: true
@@ -1807,7 +1831,7 @@ jobs:
             ${{steps.sign-rustdesk.outputs.signedReleaseFile}}
 
       - name: Publish unsigned apk package
-        if: env.ANDROID_SIGNING_KEY == null && env.UPLOAD_ARTIFACT == 'true'
+        if: env.ANDROID_SIGNING_KEY == null && env.UPLOAD_ARTIFACT == 'true' && env.TAG_NAME != 'teste'
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # v1
         with:
           prerelease: true

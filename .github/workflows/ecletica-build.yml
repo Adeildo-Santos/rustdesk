@@ -21,7 +21,7 @@ on:
         required: false
         default: "ecletica"
       somente:
-        description: "Rodar so o Mac (mac), so o Windows (windows), so o Android (android) ou tudo (todos)"
+        description: "Rodar so o Mac (mac), so o Windows (windows), so o Android (android), so o iPhone (ios) ou tudo (todos). Com tag teste o Android fica so no artefato"
         required: false
         default: "todos"
 
@@ -53,7 +53,7 @@ jobs:
   # (so mac ou so windows) trocar algum arquivo. A frota so ve a versao quando o portao abre.
   assinar-atualizacao:
     needs: build-clientes
-    if: ${{ !cancelled() && needs.build-clientes.result == 'success' && (github.event.inputs.somente || 'todos') != 'android' }}
+    if: ${{ !cancelled() && needs.build-clientes.result == 'success' && (github.event.inputs.somente || 'todos') != 'android' && (github.event.inputs.somente || 'todos') != 'ios' }}
     runs-on: ubuntu-22.04
     concurrency:
       group: assinar-atualizacao
@@ -124,7 +124,7 @@ jobs:
   # o que o usuario recebe (nome, versao, servico, licenca, assinatura, atualizador).
   testes-pacotes:
     needs: [build-clientes, assinar-atualizacao]
-    if: ${{ !cancelled() && (github.event.inputs.somente || 'todos') != 'android' }}
+    if: ${{ !cancelled() && (github.event.inputs.somente || 'todos') != 'android' && (github.event.inputs.somente || 'todos') != 'ios' }}
     runs-on: macos-15
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4

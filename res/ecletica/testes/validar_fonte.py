@@ -40,6 +40,11 @@ def contem(caminho, trecho, vezes=None):
     return n == vezes if vezes is not None else n > 0
 
 
+def ler_bytes_png_sem_alfa(caminho):
+    dados = (RAIZ / caminho).read_bytes()[:32]
+    return dados[:8] == b"\x89PNG\r\n\x1a\n" and dados[25] == 2
+
+
 def sha(caminho):
     return hashlib.sha1((RAIZ / caminho).read_bytes()).hexdigest()[:12]
 
@@ -221,6 +226,27 @@ checar("'Somente visualizar' zerado ao abrir cada sessao",
 checar("Mac: trackpad tratado como mouse", contem("flutter/lib/models/input_model.dart", "_isMouseLikeKind"))
 checar("Mac: reassinatura ad-hoc no fim do build (Acessibilidade honra os cliques)",
        contem(WORKFLOW, 'codesign --force --deep --sign - "$APP"'))
+
+print("Celular (iPhone e Android, 20/11/2026)")
+_ios_plist = ler("flutter/ios/Runner/Info.plist")
+_ios_proj = ler("flutter/ios/Runner.xcodeproj/project.pbxproj")
+checar("iPhone com o nome Ecletica Connect (bug: aparecia RustDesk na tela inicial)",
+       "<string>Eclética Connect</string>" in _ios_plist and "RustDesk" not in _ios_plist)
+checar("iPhone com identificador e equipe da Ecletica, nunca os do RustDesk",
+       _ios_proj.count("PRODUCT_BUNDLE_IDENTIFIER = br.com.ecletica.connect;") == 3
+       and "carriez" not in _ios_proj + ler("flutter/ios/exportOptions.plist")
+       and "HZF9JMC8YN" not in _ios_proj + ler("flutter/ios/exportOptions.plist"))
+checar("iPhone liga a biblioteca certa no aparelho e no simulador",
+       _ios_proj.count('"ECLETICA_RUST_TARGET[sdk=iphonesimulator*]" = "aarch64-apple-ios-sim";') == 3
+       and "target/aarch64-apple-ios/release/liblibrustdesk.a\"," not in _ios_proj)
+checar("icone do iPhone sem o logo do RustDesk e sem transparencia (exigencia da App Store)",
+       sha("flutter/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png")
+       != "fc78a51f775a" and ler_bytes_png_sem_alfa("flutter/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png"))
+checar("Android com o nome e o identificador da Ecletica",
+       contem("flutter/android/app/src/main/AndroidManifest.xml", 'android:label="Ecletica Connect"')
+       and contem("flutter/android/app/build.gradle", "br.com.ecletica.connect"))
+checar("Android de teste (tag 'teste') nao vai para Release nenhum",
+       ler(WORKFLOW).count("&& env.TAG_NAME != 'teste'") >= 2)
 
 print()
 if falhas:
