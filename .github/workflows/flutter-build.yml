@@ -993,6 +993,10 @@ jobs:
           # do aparelho; forca o alvo e o SDK do simulador.
           echo "BINDGEN_EXTRA_CLANG_ARGS_aarch64_apple_ios_sim=--target=arm64-apple-ios13.0-simulator -isysroot $SDK" >> "$GITHUB_ENV"
           echo "COREAUDIO_SDK_PATH=$SDK" >> "$GITHUB_ENV"
+          # scrap e hwcodec procuram as bibliotecas em installed/arm64-ios; no simulador elas
+          # ficam em installed/arm64-ios-simulator (so existe esse triplet neste job).
+          ln -sfn "$VCPKG_ROOT/installed/arm64-ios-simulator" "$VCPKG_ROOT/installed/arm64-ios"
+          ls "$VCPKG_ROOT/installed/arm64-ios/include" | head
 
       - name: Build rustdesk lib
         run: |
